@@ -139,12 +139,23 @@ function StepSummary({ formData, progress, navigate }) {
       title: 'Your Program',
       progress: progress.phases[4],
       editPath: '/phase/4',
-      items: [
-        `Templates: ${Object.keys(formData.eventTemplates || {}).length} events configured`,
-        `Performances: ${formData.performances?.length || 0}`,
-        `Speeches: ${formData.speeches?.length || 0}`,
-        `Ceremony traditions: ${formData.ceremonyTraditions?.length || 0}`,
-      ],
+      items: (() => {
+        const timelines = formData.timelines || {};
+        let perfCount = 0;
+        let speechCount = 0;
+        Object.values(timelines).forEach((blocks) => {
+          (blocks || []).forEach((b) => {
+            if (b.type === 'performance') perfCount++;
+            if (b.type === 'speech') speechCount++;
+          });
+        });
+        return [
+          `Templates: ${Object.keys(formData.eventTemplates || {}).length} events configured`,
+          `Performances: ${perfCount}`,
+          `Speeches: ${speechCount}`,
+          `Ceremony traditions: ${formData.ceremonyTraditions?.length || 0}`,
+        ];
+      })(),
     },
     {
       title: 'Final Details',
@@ -227,9 +238,9 @@ function StepFinalReview({ formData, updateField, setFormData }) {
 }
 
 function StepConfirmation({ formData, addToast }) {
-  const handleDownload = () => {
+  const handleDownload = async () => {
     try {
-      generateRunSheet(formData);
+      await generateRunSheet(formData);
       addToast('Run sheet downloaded!', 'success');
     } catch (err) {
       addToast('Error generating PDF. Check console.', 'error');

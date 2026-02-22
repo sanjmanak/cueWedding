@@ -7,6 +7,13 @@ import TextArea from '../common/TextArea';
 import Card from '../common/Card';
 import { equipmentOptions } from '../../data/demoData';
 
+const vendorTypes = [
+  { key: 'planner', label: 'Planner / Coordinator', emoji: '📋' },
+  { key: 'photographer', label: 'Photographer', emoji: '📸' },
+  { key: 'videographer', label: 'Videographer', emoji: '🎬' },
+  { key: 'decorator', label: 'Decorator / Florist', emoji: '💐' },
+];
+
 const steps = [
   'Vendor Contacts',
   'Production Preferences',
@@ -44,12 +51,7 @@ export default function Phase5Details() {
 
 function StepVendors({ formData, setFormData }) {
   const vendors = formData.vendors || {};
-  const vendorTypes = [
-    { key: 'planner', label: 'Wedding Planner / Coordinator' },
-    { key: 'photographer', label: 'Photographer' },
-    { key: 'videographer', label: 'Videographer' },
-    { key: 'decorator', label: 'Decorator / Florist' },
-  ];
+  const [activeVendor, setActiveVendor] = useState(null);
 
   const updateVendor = (key, field, value) => {
     setFormData((prev) => ({
@@ -64,36 +66,66 @@ function StepVendors({ formData, setFormData }) {
   return (
     <div className="space-y-6 animate-fade-in-up">
       <p className="text-stone-600">Who else is on your vendor team? We'll coordinate with them.</p>
-      {vendorTypes.map(({ key, label }) => {
-        const vendor = vendors[key] || {};
-        return (
-          <Card key={key} className="p-5 space-y-3">
-            <h3 className="font-medium text-stone-800">{label}</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <Input
-                label="Name"
-                value={vendor.name || ''}
-                onChange={(e) => updateVendor(key, 'name', e.target.value)}
-                placeholder="Contact name"
-              />
-              <Input
-                label="Phone"
-                type="tel"
-                value={vendor.phone || ''}
-                onChange={(e) => updateVendor(key, 'phone', e.target.value)}
-                placeholder="(555) 000-0000"
-              />
-              <Input
-                label="Email"
-                type="email"
-                value={vendor.email || ''}
-                onChange={(e) => updateVendor(key, 'email', e.target.value)}
-                placeholder="email@example.com"
-              />
-            </div>
-          </Card>
-        );
-      })}
+      <div className="grid grid-cols-2 gap-3">
+        {vendorTypes.map(({ key, label, emoji }) => {
+          const vendor = vendors[key] || {};
+          const hasData = vendor.name || vendor.phone || vendor.email;
+          const isActive = activeVendor === key;
+          return (
+            <button
+              key={key}
+              onClick={() => setActiveVendor(isActive ? null : key)}
+              className={`flex flex-col items-center gap-2 p-5 rounded-xl border-2 transition-all cursor-pointer ${
+                isActive
+                  ? 'border-gold-400 bg-gold-50 shadow-sm'
+                  : hasData
+                  ? 'border-green-300 bg-white'
+                  : 'border-stone-200 bg-white hover:border-stone-300'
+              }`}
+            >
+              <span className="text-3xl">{emoji}</span>
+              <span className={`text-sm font-medium text-center leading-tight ${isActive ? 'text-gold-800' : 'text-stone-700'}`}>
+                {label}
+              </span>
+              {hasData && !isActive && (
+                <span className="text-xs text-stone-400 truncate max-w-full">{vendor.name}</span>
+              )}
+              {hasData && <span className="text-xs text-green-600 font-medium">Added</span>}
+            </button>
+          );
+        })}
+      </div>
+
+      {activeVendor && (
+        <Card className="p-5 space-y-3 animate-fade-in-up">
+          <h3 className="font-medium text-stone-800">
+            {vendorTypes.find((v) => v.key === activeVendor)?.emoji}{' '}
+            {vendorTypes.find((v) => v.key === activeVendor)?.label}
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Input
+              label="Name"
+              value={vendors[activeVendor]?.name || ''}
+              onChange={(e) => updateVendor(activeVendor, 'name', e.target.value)}
+              placeholder="Contact name"
+            />
+            <Input
+              label="Phone"
+              type="tel"
+              value={vendors[activeVendor]?.phone || ''}
+              onChange={(e) => updateVendor(activeVendor, 'phone', e.target.value)}
+              placeholder="(555) 000-0000"
+            />
+            <Input
+              label="Email"
+              type="email"
+              value={vendors[activeVendor]?.email || ''}
+              onChange={(e) => updateVendor(activeVendor, 'email', e.target.value)}
+              placeholder="email@example.com"
+            />
+          </div>
+        </Card>
+      )}
     </div>
   );
 }
