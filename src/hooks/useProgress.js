@@ -20,7 +20,7 @@ export function useProgress(formData) {
 function calculatePhase1(d) {
   let score = 0, total = 6;
   if (d.brideName && d.groomName) score++;
-  if (d.weddingDate) score++;
+  if (d.firstEventDate) score++;
   if (d.howMet) score++;
   if (d.selectedEvents?.length > 0) score++;
   if (d.selectedEvents?.some(e => d.eventVenues?.[e]?.name)) score++;

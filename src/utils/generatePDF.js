@@ -91,7 +91,7 @@ export function generateRunSheet(data) {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(14);
   doc.setTextColor(...GRAY);
-  const dateStr = data.weddingDate ? new Date(data.weddingDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'Date TBD';
+  const dateStr = data.firstEventDate ? new Date(data.firstEventDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'Date TBD';
   doc.text(dateStr, pageW / 2, 115, { align: 'center' });
 
   // Generated date

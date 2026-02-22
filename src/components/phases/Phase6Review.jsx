@@ -108,7 +108,7 @@ function StepSummary({ formData, progress, navigate }) {
       editPath: '/phase/1',
       items: [
         `${formData.brideName} & ${formData.groomName}`,
-        `Wedding: ${formData.weddingDate || 'Not set'}`,
+        `First Event: ${formData.firstEventDate || 'Not set'}`,
         `Events: ${(formData.selectedEvents || []).map((e) => eventOptions.find((o) => o.id === e)?.label).join(', ') || 'None'}`,
         `Vibe: ${(formData.vibeWords || []).join(', ') || 'Not set'}`,
       ],

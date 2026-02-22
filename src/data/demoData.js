@@ -1,9 +1,9 @@
 export const eventOptions = [
-  { id: 'haldi', label: 'Haldi', emoji: '🟡' },
+  { id: 'haldi', label: 'Haldi', emoji: '🌸' },
   { id: 'mehndi', label: 'Mehndi', emoji: '🌿' },
   { id: 'sangeet', label: 'Sangeet', emoji: '🎶' },
   { id: 'garba', label: 'Garba', emoji: '💃' },
-  { id: 'ceremony', label: 'Ceremony', emoji: '🔥' },
+  { id: 'ceremony', label: 'Ceremony', emoji: '💑' },
   { id: 'reception', label: 'Reception', emoji: '🥂' },
   { id: 'afterparty', label: 'After Party', emoji: '🎉' },
 ];
@@ -22,7 +22,12 @@ export const westernMusicOptions = [
 ];
 
 export const howMetOptions = [
-  'Dating App', 'Through Friends', 'College', 'Work', 'Family Introduction', 'Other',
+  { id: 'dating-app', label: 'Dating App', emoji: '📱', followUp: 'Which app brought you together?', followUpType: 'apps' },
+  { id: 'through-friends', label: 'Through Friends', emoji: '👫', followUp: 'Which friend(s) made the intro?', followUpType: 'text' },
+  { id: 'college', label: 'College / University', emoji: '🎓', followUp: 'Which school?', followUpType: 'text' },
+  { id: 'work', label: 'Work', emoji: '💼', followUp: 'Where did you work together?', followUpType: 'text' },
+  { id: 'family', label: 'Family Introduction', emoji: '🏠', followUp: 'Who introduced you?', followUpType: 'text' },
+  { id: 'other', label: 'Other', emoji: '✨', followUp: 'Tell us more!', followUpType: 'text' },
 ];
 
 export const datingAppOptions = [
@@ -89,10 +94,13 @@ export const templateOptions = {
 export const defaultDemoData = {
   // Phase 1: Your Story
   brideName: 'Alexsa',
+  brideLastName: 'Patel',
   groomName: 'Kishan',
-  weddingDate: '2026-06-20',
-  howMet: 'Dating App',
+  groomLastName: 'Shah',
+  firstEventDate: '2026-06-18',
+  howMet: 'dating-app',
   datingApp: 'Dil Mil',
+  howMetDetail: '',
   meetDetail: 'He sent a message about my love for biryani, and the rest is history!',
   selectedEvents: ['mehndi', 'sangeet', 'ceremony', 'reception'],
   eventVenues: {
