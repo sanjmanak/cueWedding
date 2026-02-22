@@ -4,7 +4,6 @@ import { useFormData } from '../../context/FormDataContext';
 import { useToast } from '../../context/ToastContext';
 import PhaseWrapper from '../common/PhaseWrapper';
 import Input from '../common/Input';
-import TextArea from '../common/TextArea';
 import Card from '../common/Card';
 import Button from '../common/Button';
 import {
@@ -125,74 +124,88 @@ function StepHowMet({ formData, updateField }) {
   return (
     <div className="space-y-6 animate-fade-in-up">
       <div className="text-center mb-2">
-        <p className="text-stone-500">Every love story has a beginning. What's yours?</p>
+        <p className="text-sm tracking-widest text-gold-600 uppercase mb-2">Chapter One</p>
+        <h2 className="font-heading text-2xl font-semibold text-stone-800">Your love story</h2>
+        <p className="text-stone-500 mt-2">We love sharing how couples met during announcements</p>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {howMetOptions.map((option) => (
-          <button
-            key={option.id}
-            onClick={() => {
-              updateField('howMet', option.id);
-              updateField('howMetDetail', '');
-              if (option.id !== 'dating-app') updateField('datingApp', '');
-            }}
-            className={`p-4 rounded-xl border-2 text-center transition-all duration-200 cursor-pointer ${
-              formData.howMet === option.id
-                ? 'border-gold-500 bg-gold-50 shadow-sm scale-[1.02]'
-                : 'border-stone-200 hover:border-stone-300 hover:shadow-sm'
-            }`}
-          >
-            <div className="text-2xl mb-2">{option.emoji}</div>
-            <div className="text-sm font-medium text-stone-700">{option.label}</div>
-          </button>
-        ))}
-      </div>
+      <Card className="p-6 sm:p-8 space-y-6">
+        {/* How did you meet buttons */}
+        <div>
+          <label className="block text-sm font-medium text-stone-700 mb-3">How did you two meet?</label>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {howMetOptions.map((option) => (
+              <button
+                key={option.id}
+                onClick={() => {
+                  updateField('howMet', option.id);
+                  updateField('howMetDetail', '');
+                  if (option.id !== 'dating-app') updateField('datingApp', '');
+                }}
+                className={`px-4 py-3 rounded-lg border text-sm font-medium transition-all cursor-pointer ${
+                  formData.howMet === option.id
+                    ? 'bg-gold-50 border-gold-400 text-gold-700'
+                    : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
-      {selectedOption && (
-        <div className="animate-fade-in-up space-y-4 bg-stone-50 rounded-xl p-5 border border-stone-200">
-          <p className="text-sm font-medium text-stone-700">{selectedOption.followUp}</p>
-
-          {selectedOption.followUpType === 'apps' && (
-            <div className="flex flex-wrap gap-2">
+        {/* Dating app follow-up — inline within same card */}
+        {selectedOption?.followUpType === 'apps' && (
+          <div className="animate-fade-in-up">
+            <label className="block text-sm font-medium text-stone-700 mb-3">
+              {selectedOption.followUp} <span className="text-stone-400 font-normal">Your DJ might have fun with this</span>
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {datingAppOptions.map((app) => (
                 <button
                   key={app}
                   onClick={() => updateField('datingApp', app)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium border transition-all cursor-pointer ${
+                  className={`px-4 py-3 rounded-lg border text-sm font-medium transition-all cursor-pointer ${
                     formData.datingApp === app
-                      ? 'bg-gold-600 text-white border-gold-600'
-                      : 'border-stone-300 text-stone-600 hover:border-gold-400'
+                      ? 'bg-gold-50 border-gold-400 text-gold-700'
+                      : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300'
                   }`}
                 >
                   {app}
                 </button>
               ))}
             </div>
-          )}
+          </div>
+        )}
 
-          {selectedOption.followUpType === 'text' && (
+        {/* Text follow-up for other options — inline within same card */}
+        {selectedOption?.followUpType === 'text' && (
+          <div className="animate-fade-in-up">
+            <label className="block text-sm font-medium text-stone-700 mb-2">{selectedOption.followUp}</label>
             <input
               type="text"
               value={formData.howMetDetail || ''}
               onChange={(e) => updateField('howMetDetail', e.target.value)}
               placeholder={selectedOption.followUp}
-              className="w-full px-4 py-2.5 rounded-lg border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400 focus:border-transparent"
+              className="w-full px-4 py-3 rounded-lg bg-stone-50 border border-stone-200 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:border-gold-400 focus:ring-1 focus:ring-gold-400"
             />
-          )}
-        </div>
-      )}
+          </div>
+        )}
 
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-stone-700 block">
-          Any other fun detail your DJ should know? <span className="text-stone-400 font-normal">(optional)</span>
-        </label>
-        <TextArea
-          value={formData.meetDetail || ''}
-          onChange={(e) => updateField('meetDetail', e.target.value)}
-          placeholder="e.g., He sent a message about my love for biryani, and the rest is history!"
-        />
-      </div>
+        {/* Fun detail — always visible, part of same card */}
+        <div>
+          <label className="block text-sm font-medium text-stone-700 mb-2">
+            Any fun detail your DJ should know? <span className="text-stone-400 font-normal">(optional)</span>
+          </label>
+          <input
+            type="text"
+            value={formData.meetDetail || ''}
+            onChange={(e) => updateField('meetDetail', e.target.value)}
+            placeholder="e.g., He proposed at the same restaurant where they had their first date"
+            className="w-full px-4 py-3 rounded-lg bg-stone-50 border border-stone-200 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:border-gold-400 focus:ring-1 focus:ring-gold-400"
+          />
+        </div>
+      </Card>
     </div>
   );
 }
