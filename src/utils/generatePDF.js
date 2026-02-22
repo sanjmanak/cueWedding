@@ -6,7 +6,27 @@ const DARK = [41, 37, 36];
 const GRAY = [120, 113, 108];
 const LIGHT = [245, 245, 244];
 
-export function generateRunSheet(data) {
+// Strip emojis and other non-printable characters that jsPDF can't render
+const clean = (str) => str ? str.replace(/[^\p{L}\p{N}\p{P}\p{Z}\p{Sc}]/gu, '').trim() : '';
+
+function loadImage(url) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
+export async function generateRunSheet(data) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -25,7 +45,7 @@ export function generateRunSheet(data) {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(size);
     doc.setTextColor(...DARK);
-    doc.text(text, margin, y);
+    doc.text(clean(text), margin, y);
     y += size * 0.5 + 2;
     doc.setDrawColor(...GOLD);
     doc.setLineWidth(0.5);
@@ -38,7 +58,7 @@ export function generateRunSheet(data) {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
     doc.setTextColor(...GOLD);
-    doc.text(text, margin, y);
+    doc.text(clean(text), margin, y);
     y += 6;
   };
 
@@ -47,7 +67,7 @@ export function generateRunSheet(data) {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
     doc.setTextColor(...DARK);
-    const lines = doc.splitTextToSize(text, pageW - margin * 2 - indent);
+    const lines = doc.splitTextToSize(clean(text), pageW - margin * 2 - indent);
     doc.text(lines, margin + indent, y);
     y += lines.length * 5;
   };
@@ -57,11 +77,11 @@ export function generateRunSheet(data) {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
     doc.setTextColor(...GRAY);
-    doc.text(label, margin + indent, y);
+    doc.text(clean(label), margin + indent, y);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
     doc.setTextColor(...DARK);
-    doc.text(String(value || '—'), margin + indent + 40, y);
+    doc.text(String(clean(value) || '—'), margin + indent + 40, y);
     y += 6;
   };
 
@@ -71,16 +91,30 @@ export function generateRunSheet(data) {
   doc.setFillColor(...LIGHT);
   doc.rect(0, 0, pageW, pageH, 'F');
 
-  // Logo placeholder
-  doc.setFontSize(12);
-  doc.setTextColor(...GRAY);
-  doc.text('Special Occasions DJ · Lighting · Technology', pageW / 2, 40, { align: 'center' });
+  // Logo
+  let logoLoaded = false;
+  try {
+    const baseUrl = import.meta.env.BASE_URL || '/';
+    const logoData = await loadImage(baseUrl + 'logo.png');
+    if (logoData) {
+      doc.addImage(logoData, 'PNG', pageW / 2 - 20, 20, 40, 40);
+      logoLoaded = true;
+    }
+  } catch {
+    // Logo failed to load, use text fallback
+  }
+
+  if (!logoLoaded) {
+    doc.setFontSize(12);
+    doc.setTextColor(...GRAY);
+    doc.text('Special Occasions DJ - Lighting - Technology', pageW / 2, 40, { align: 'center' });
+  }
 
   // Title
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(32);
   doc.setTextColor(...DARK);
-  doc.text('Wedding Run Sheet', pageW / 2, 80, { align: 'center' });
+  doc.text('Wedding Run Sheet', pageW / 2, logoLoaded ? 80 : 80, { align: 'center' });
 
   // Couple names
   doc.setFontSize(24);
@@ -128,7 +162,7 @@ export function generateRunSheet(data) {
     const guests = data.eventGuestCounts?.[eventId] || '—';
     const vibe = data.eventVibes?.[eventId] || '—';
     checkPage(30);
-    subheading(`${event?.emoji || ''} ${event?.label || eventId}`);
+    subheading(event?.label || eventId);
     labelValue('Venue', venue.name, 4);
     labelValue('Address', venue.address, 4);
     labelValue('Setting', venue.setting, 4);
@@ -170,10 +204,10 @@ export function generateRunSheet(data) {
   doc.setTextColor(...DARK);
   allPeople.forEach((person) => {
     checkPage(8);
-    doc.text(person.name, cols[0], y);
-    doc.text(person.role || '', cols[1], y);
-    doc.text(person.pronunciation || '', cols[2], y);
-    doc.text(person.style || '', cols[3], y);
+    doc.text(clean(person.name), cols[0], y);
+    doc.text(clean(person.role || ''), cols[1], y);
+    doc.text(clean(person.pronunciation || ''), cols[2], y);
+    doc.text(clean(person.style || ''), cols[3], y);
     y += 5;
   });
 
@@ -185,14 +219,14 @@ export function generateRunSheet(data) {
   (data.mustPlaySongs || []).forEach((song) => {
     checkPage(8);
     const eventLabel = eventOptions.find((e) => e.id === song.event)?.label || '';
-    bodyText(`• ${song.name} — ${song.artist}${eventLabel ? ` [${eventLabel}]` : ''}`, 4);
+    bodyText(`- ${song.name} — ${song.artist}${eventLabel ? ` [${eventLabel}]` : ''}`, 4);
   });
 
   spacer();
   subheading('Do-Not-Play Songs');
   (data.doNotPlaySongs || []).forEach((song) => {
     checkPage(8);
-    bodyText(`• ${song.name} — ${song.artist}`, 4);
+    bodyText(`- ${song.name} — ${song.artist}`, 4);
   });
 
   spacer();
@@ -219,33 +253,41 @@ export function generateRunSheet(data) {
     const blocks = data.timelines?.[eventId] || [];
     if (blocks.length === 0) return;
     checkPage(20);
-    subheading(`${event?.emoji || ''} ${event?.label || eventId}`);
+    subheading(event?.label || eventId);
     let cumMin = 0;
     blocks.forEach((block) => {
-      checkPage(8);
+      checkPage(12);
       bodyText(`+${cumMin}min  ${block.label} (${block.duration}min)`, 4);
+      // Show performance details inline
+      if (block.type === 'performance' && (block.performerName || block.songName)) {
+        bodyText(`  Performer: ${block.performerName || '—'}  |  Song: ${block.songName || '—'}`, 12);
+      }
+      // Show speech details inline
+      if (block.type === 'speech' && block.speaker) {
+        bodyText(`  Speaker: ${block.speaker}${block.relationship ? ` (${block.relationship})` : ''}`, 12);
+      }
       cumMin += block.duration || 0;
     });
     spacer();
   });
 
-  // Performances
+  // Legacy performances (from old data format)
   if (data.performances?.length) {
     spacer();
-    subheading('Performances');
+    subheading('Additional Performances');
     data.performances.forEach((p) => {
       checkPage(8);
-      bodyText(`• ${p.groupName}: "${p.songName}" (${p.duration}min)`, 4);
+      bodyText(`- ${p.groupName}: "${p.songName}" (${p.duration}min)`, 4);
     });
   }
 
-  // Speeches
+  // Legacy speeches (from old data format)
   if (data.speeches?.length) {
     spacer();
-    subheading('Speeches');
+    subheading('Additional Speeches');
     data.speeches.forEach((s) => {
       checkPage(8);
-      bodyText(`• ${s.speaker} (${s.relationship}) — after ${s.afterMoment}`, 4);
+      bodyText(`- ${s.speaker} (${s.relationship}) — after ${s.afterMoment}`, 4);
     });
   }
 
@@ -294,7 +336,7 @@ export function generateRunSheet(data) {
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(16);
     doc.setTextColor(...DARK);
-    doc.text(data.signatureName, margin, y);
+    doc.text(clean(data.signatureName), margin, y);
     y += 10;
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);

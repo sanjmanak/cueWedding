@@ -50,7 +50,10 @@ function calculatePhase4(d) {
   let score = 0, total = 3;
   if (Object.keys(d.eventTemplates || {}).length > 0) score++;
   if (Object.keys(d.timelines || {}).some(k => d.timelines[k]?.length > 0)) score++;
-  if (d.performances?.length > 0 || d.speeches?.length > 0) score++;
+  const hasDetails = Object.values(d.timelines || {}).some(blocks =>
+    (blocks || []).some(b => (b.type === 'performance' && b.performerName) || (b.type === 'speech' && b.speaker))
+  );
+  if (hasDetails || d.performances?.length > 0 || d.speeches?.length > 0) score++;
   return Math.round((score / total) * 100);
 }
 

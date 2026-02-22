@@ -39,23 +39,25 @@ export const guestCountOptions = [
 ];
 
 export const ceremonyTraditions = [
-  { id: 'baraat', label: 'Baraat (Groom\'s Procession)' },
-  { id: 'milni', label: 'Milni (Family Greeting)' },
-  { id: 'ganesh-puja', label: 'Ganesh Puja' },
-  { id: 'kanyadaan', label: 'Kanyadaan' },
-  { id: 'jai-mala', label: 'Jai Mala (Garland Exchange)' },
-  { id: 'pheras', label: 'Pheras (Sacred Rounds)' },
-  { id: 'sindoor', label: 'Sindoor & Mangalsutra' },
-  { id: 'vidai', label: 'Vidai (Bridal Farewell)' },
+  { id: 'baraat', label: 'Baraat', emoji: '🐴', description: "The groom's grand procession to the venue with music, dancing, and family" },
+  { id: 'milni', label: 'Milni', emoji: '🤝', description: 'Both families meet and exchange garlands to celebrate the union of two sides' },
+  { id: 'ganesh-puja', label: 'Ganesh Puja', emoji: '🙏', description: 'An invocation to Lord Ganesh seeking blessings for a smooth ceremony' },
+  { id: 'kanyadaan', label: 'Kanyadaan', emoji: '🤲', description: "The bride's parents lovingly entrust their daughter to the groom" },
+  { id: 'jai-mala', label: 'Jai Mala', emoji: '💐', description: 'The couple exchanges floral garlands, signifying mutual acceptance' },
+  { id: 'pheras', label: 'Pheras', emoji: '🔥', description: 'Sacred rounds around the holy fire, each representing a lifelong vow' },
+  { id: 'sindoor', label: 'Sindoor & Mangalsutra', emoji: '❤️', description: 'The groom applies sindoor and ties the sacred necklace' },
+  { id: 'vidai', label: 'Vidai', emoji: '🥹', description: "The bride's emotional farewell as she begins her new journey" },
 ];
 
 export const timelineBlockTypes = [
   { id: 'performance', label: 'Performance', icon: '🎤', color: 'bg-purple-100 text-purple-800' },
   { id: 'speech', label: 'Speech', icon: '🎙️', color: 'bg-blue-100 text-blue-800' },
   { id: 'tradition', label: 'Tradition', icon: '🪔', color: 'bg-orange-100 text-orange-800' },
+  { id: 'cocktail', label: 'Cocktail / Background', icon: '🍸', color: 'bg-amber-100 text-amber-800' },
   { id: 'dance-set', label: 'Dance Set', icon: '💃', color: 'bg-pink-100 text-pink-800' },
   { id: 'dinner', label: 'Dinner', icon: '🍽️', color: 'bg-green-100 text-green-800' },
   { id: 'break', label: 'Break', icon: '⏸️', color: 'bg-stone-100 text-stone-800' },
+  { id: 'other', label: 'Other', icon: '✏️', color: 'bg-gray-100 text-gray-800' },
 ];
 
 export const siblingAndPartyRoles = [
@@ -190,33 +192,26 @@ export const defaultDemoData = {
   timelines: {
     sangeet: [
       { id: '1', type: 'dance-set', label: 'Guests Arrive - Background Music', duration: 30, details: '' },
-      { id: '2', type: 'speech', label: 'Welcome Speech', duration: 5, details: 'MC Rohan Mehta' },
-      { id: '3', type: 'performance', label: 'Bride\'s Side Performance', duration: 5, details: '' },
-      { id: '4', type: 'performance', label: 'Groom\'s Side Performance', duration: 5, details: '' },
-      { id: '5', type: 'performance', label: 'Couple Performance', duration: 7, details: '' },
+      { id: '2', type: 'speech', label: 'Welcome Speech', duration: 5, details: '', speaker: 'Rohan Mehta', relationship: 'MC / Best Friend' },
+      { id: '3', type: 'performance', label: "Bride's Side Performance", duration: 5, details: '', performerName: 'Bride Squad', songName: 'Nagada Sang Dhol' },
+      { id: '4', type: 'performance', label: "Groom's Side Performance", duration: 5, details: '', performerName: 'Groom Squad', songName: 'Gallan Goodiyaan' },
+      { id: '5', type: 'performance', label: 'Couple Performance', duration: 7, details: '', performerName: 'Alexsa & Kishan', songName: 'Tum Hi Ho / Perfect Mashup' },
       { id: '6', type: 'dinner', label: 'Dinner', duration: 45, details: '' },
       { id: '7', type: 'dance-set', label: 'Open Dance Floor', duration: 60, details: '' },
     ],
     reception: [
-      { id: '1', type: 'dance-set', label: 'Cocktail Hour', duration: 60, details: '' },
-      { id: '2', type: 'tradition', label: 'Grand Entrance', duration: 10, details: '' },
-      { id: '3', type: 'speech', label: 'Father of the Bride Toast', duration: 5, details: '' },
-      { id: '4', type: 'speech', label: 'Best Man Toast', duration: 5, details: '' },
-      { id: '5', type: 'dinner', label: 'Dinner Service', duration: 45, details: '' },
-      { id: '6', type: 'tradition', label: 'First Dance', duration: 5, details: '' },
-      { id: '7', type: 'tradition', label: 'Father-Daughter Dance', duration: 4, details: '' },
-      { id: '8', type: 'dance-set', label: 'Open Dance Floor', duration: 90, details: '' },
+      { id: '8', type: 'cocktail', label: 'Cocktail Hour', duration: 60, details: '' },
+      { id: '9', type: 'tradition', label: 'Grand Entrance', duration: 10, details: '' },
+      { id: '10', type: 'speech', label: 'Father of the Bride Toast', duration: 5, details: '', speaker: 'Raj Patel', relationship: 'Father of the Bride' },
+      { id: '11', type: 'speech', label: 'Best Man Toast', duration: 5, details: '', speaker: 'Rohan Mehta', relationship: 'Best Man' },
+      { id: '12', type: 'dinner', label: 'Dinner Service', duration: 45, details: '' },
+      { id: '13', type: 'tradition', label: 'First Dance', duration: 5, details: '' },
+      { id: '14', type: 'tradition', label: 'Father-Daughter Dance', duration: 4, details: '' },
+      { id: '15', type: 'dance-set', label: 'Open Dance Floor', duration: 90, details: '' },
     ],
   },
-  performances: [
-    { id: '1', groupName: 'Bride Squad', songName: 'Nagada Sang Dhol', duration: 5, event: 'sangeet' },
-    { id: '2', groupName: 'Groom Squad', songName: 'Gallan Goodiyaan', duration: 5, event: 'sangeet' },
-    { id: '3', groupName: 'Alexsa & Kishan', songName: 'Tum Hi Ho / Perfect Mashup', duration: 7, event: 'sangeet' },
-  ],
-  speeches: [
-    { id: '1', speaker: 'Rohan Mehta', relationship: 'Best Man', afterMoment: 'Grand Entrance', event: 'reception' },
-    { id: '2', speaker: 'Raj Patel', relationship: 'Father of the Bride', afterMoment: 'Grand Entrance', event: 'reception' },
-  ],
+  performances: [],
+  speeches: [],
   ceremonyTraditions: ['baraat', 'jai-mala', 'pheras', 'vidai'],
   ceremonySongs: {},
 

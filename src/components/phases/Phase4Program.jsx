@@ -3,9 +3,7 @@ import { useFormData } from '../../context/FormDataContext';
 import { useToast } from '../../context/ToastContext';
 import PhaseWrapper from '../common/PhaseWrapper';
 import Card from '../common/Card';
-import Button from '../common/Button';
 import Input from '../common/Input';
-import Select from '../common/Select';
 import MusicSearch from '../features/MusicSearch';
 import {
   eventOptions, templateOptions, timelineBlockTypes, ceremonyTraditions,
@@ -234,142 +232,203 @@ function StepTimeline({ formData, setFormData, addToast }) {
 }
 
 function StepPerformances({ formData, setFormData, addToast }) {
-  const performances = formData.performances || [];
   const events = formData.selectedEvents || [];
+  const timelines = formData.timelines || {};
 
-  const addPerformance = () => {
+  const updateBlock = (eventId, blockId, field, value) => {
     setFormData((prev) => ({
       ...prev,
-      performances: [...(prev.performances || []),
-        { id: Date.now().toString(), groupName: '', songName: '', duration: 5, event: events[0] || '' }],
+      timelines: {
+        ...prev.timelines,
+        [eventId]: (prev.timelines?.[eventId] || []).map((b) =>
+          b.id === blockId ? { ...b, [field]: value } : b
+        ),
+      },
+    }));
+  };
+
+  const addPerformance = (eventId) => {
+    const newBlock = {
+      id: Date.now().toString(),
+      type: 'performance',
+      label: 'New Performance',
+      duration: 5,
+      details: '',
+      performerName: '',
+      songName: '',
+    };
+    setFormData((prev) => ({
+      ...prev,
+      timelines: {
+        ...prev.timelines,
+        [eventId]: [...(prev.timelines?.[eventId] || []), newBlock],
+      },
     }));
     addToast('Performance added!', 'success', 1500);
   };
 
-  const updatePerformance = (id, field, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      performances: (prev.performances || []).map((p) => (p.id === id ? { ...p, [field]: value } : p)),
-    }));
-  };
-
-  const removePerformance = (id) => {
-    setFormData((prev) => ({
-      ...prev,
-      performances: (prev.performances || []).filter((p) => p.id !== id),
-    }));
-  };
-
   return (
-    <div className="space-y-6 animate-fade-in-up">
-      <p className="text-stone-600">List all performances planned for your events.</p>
-      {performances.map((perf) => (
-        <Card key={perf.id} className="p-4 space-y-3">
-          <div className="flex justify-between">
-            <Input
-              label="Group / Performer Name"
-              value={perf.groupName}
-              onChange={(e) => updatePerformance(perf.id, 'groupName', e.target.value)}
-              placeholder="e.g., Bride Squad"
-              className="flex-1"
-            />
-            <button onClick={() => removePerformance(perf.id)} className="ml-2 mt-6 text-stone-400 hover:text-red-500 cursor-pointer">✕</button>
+    <div className="space-y-8 animate-fade-in-up">
+      <p className="text-stone-600">Fill in details for each performance in your timeline.</p>
+      {events.map((eventId) => {
+        const event = eventOptions.find((e) => e.id === eventId);
+        const perfBlocks = (timelines[eventId] || []).filter((b) => b.type === 'performance');
+        return (
+          <div key={eventId} className="space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs tracking-widest uppercase text-gold-600 font-semibold">
+                {event?.label}
+              </span>
+              <span className="flex-1 border-t border-stone-200" />
+              <span className="text-xs text-stone-400">{perfBlocks.length} performance{perfBlocks.length !== 1 ? 's' : ''}</span>
+            </div>
+            {perfBlocks.length === 0 ? (
+              <p className="text-sm text-stone-400 italic pl-2">No performances in this event yet.</p>
+            ) : (
+              perfBlocks.map((block) => (
+                <Card key={block.id} className="p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">🎤</span>
+                    <input
+                      value={block.label}
+                      onChange={(e) => updateBlock(eventId, block.id, 'label', e.target.value)}
+                      className="flex-1 text-sm font-medium text-stone-700 bg-transparent outline-none border-b border-transparent focus:border-gold-400"
+                      placeholder="Performance name"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <Input
+                      label="Performer / Group"
+                      value={block.performerName || ''}
+                      onChange={(e) => updateBlock(eventId, block.id, 'performerName', e.target.value)}
+                      placeholder="e.g., Bride Squad"
+                    />
+                    <Input
+                      label="Song"
+                      value={block.songName || ''}
+                      onChange={(e) => updateBlock(eventId, block.id, 'songName', e.target.value)}
+                      placeholder="Song name"
+                    />
+                    <Input
+                      label="Duration (min)"
+                      type="number"
+                      value={block.duration}
+                      onChange={(e) => updateBlock(eventId, block.id, 'duration', parseInt(e.target.value) || 0)}
+                    />
+                  </div>
+                </Card>
+              ))
+            )}
+            <button
+              onClick={() => addPerformance(eventId)}
+              className="w-full py-2 rounded-lg border border-dashed border-stone-300 text-xs font-medium text-stone-500 hover:border-gold-400 hover:text-gold-600 transition-colors cursor-pointer"
+            >
+              + Add Performance to {event?.label}
+            </button>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <Input
-              label="Song"
-              value={perf.songName}
-              onChange={(e) => updatePerformance(perf.id, 'songName', e.target.value)}
-              placeholder="Song name"
-            />
-            <Input
-              label="Duration (min)"
-              type="number"
-              value={perf.duration}
-              onChange={(e) => updatePerformance(perf.id, 'duration', parseInt(e.target.value) || 0)}
-            />
-            <Select
-              label="Event"
-              options={events.map((e) => ({ value: e, label: eventOptions.find((o) => o.id === e)?.label }))}
-              value={perf.event}
-              onChange={(e) => updatePerformance(perf.id, 'event', e.target.value)}
-            />
-          </div>
-        </Card>
-      ))}
-      <Button variant="secondary" size="sm" onClick={addPerformance}>
-        + Add Performance
-      </Button>
+        );
+      })}
     </div>
   );
 }
 
 function StepSpeeches({ formData, setFormData, addToast }) {
-  const speeches = formData.speeches || [];
   const events = formData.selectedEvents || [];
+  const timelines = formData.timelines || {};
 
-  const addSpeech = () => {
+  const updateBlock = (eventId, blockId, field, value) => {
     setFormData((prev) => ({
       ...prev,
-      speeches: [...(prev.speeches || []),
-        { id: Date.now().toString(), speaker: '', relationship: '', afterMoment: '', event: events[0] || '' }],
+      timelines: {
+        ...prev.timelines,
+        [eventId]: (prev.timelines?.[eventId] || []).map((b) =>
+          b.id === blockId ? { ...b, [field]: value } : b
+        ),
+      },
+    }));
+  };
+
+  const addSpeech = (eventId) => {
+    const newBlock = {
+      id: Date.now().toString(),
+      type: 'speech',
+      label: 'New Speech',
+      duration: 5,
+      details: '',
+      speaker: '',
+      relationship: '',
+    };
+    setFormData((prev) => ({
+      ...prev,
+      timelines: {
+        ...prev.timelines,
+        [eventId]: [...(prev.timelines?.[eventId] || []), newBlock],
+      },
     }));
     addToast('Speech added!', 'success', 1500);
   };
 
-  const updateSpeech = (id, field, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      speeches: (prev.speeches || []).map((s) => (s.id === id ? { ...s, [field]: value } : s)),
-    }));
-  };
-
-  const removeSpeech = (id) => {
-    setFormData((prev) => ({
-      ...prev,
-      speeches: (prev.speeches || []).filter((s) => s.id !== id),
-    }));
-  };
-
   return (
-    <div className="space-y-6 animate-fade-in-up">
-      <p className="text-stone-600">Who's giving speeches? Let us know the order.</p>
-      {speeches.map((speech) => (
-        <Card key={speech.id} className="p-4 space-y-3">
-          <div className="flex justify-between">
-            <Input
-              label="Speaker Name"
-              value={speech.speaker}
-              onChange={(e) => updateSpeech(speech.id, 'speaker', e.target.value)}
-              className="flex-1"
-            />
-            <button onClick={() => removeSpeech(speech.id)} className="ml-2 mt-6 text-stone-400 hover:text-red-500 cursor-pointer">✕</button>
+    <div className="space-y-8 animate-fade-in-up">
+      <p className="text-stone-600">Fill in details for each speech in your timeline.</p>
+      {events.map((eventId) => {
+        const event = eventOptions.find((e) => e.id === eventId);
+        const speechBlocks = (timelines[eventId] || []).filter((b) => b.type === 'speech');
+        return (
+          <div key={eventId} className="space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs tracking-widest uppercase text-gold-600 font-semibold">
+                {event?.label}
+              </span>
+              <span className="flex-1 border-t border-stone-200" />
+              <span className="text-xs text-stone-400">{speechBlocks.length} speech{speechBlocks.length !== 1 ? 'es' : ''}</span>
+            </div>
+            {speechBlocks.length === 0 ? (
+              <p className="text-sm text-stone-400 italic pl-2">No speeches in this event yet.</p>
+            ) : (
+              speechBlocks.map((block) => (
+                <Card key={block.id} className="p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">🎙️</span>
+                    <input
+                      value={block.label}
+                      onChange={(e) => updateBlock(eventId, block.id, 'label', e.target.value)}
+                      className="flex-1 text-sm font-medium text-stone-700 bg-transparent outline-none border-b border-transparent focus:border-gold-400"
+                      placeholder="Speech name"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <Input
+                      label="Speaker Name"
+                      value={block.speaker || ''}
+                      onChange={(e) => updateBlock(eventId, block.id, 'speaker', e.target.value)}
+                      placeholder="e.g., Raj Patel"
+                    />
+                    <Input
+                      label="Relationship"
+                      value={block.relationship || ''}
+                      onChange={(e) => updateBlock(eventId, block.id, 'relationship', e.target.value)}
+                      placeholder="e.g., Father of the Bride"
+                    />
+                    <Input
+                      label="Duration (min)"
+                      type="number"
+                      value={block.duration}
+                      onChange={(e) => updateBlock(eventId, block.id, 'duration', parseInt(e.target.value) || 0)}
+                    />
+                  </div>
+                </Card>
+              ))
+            )}
+            <button
+              onClick={() => addSpeech(eventId)}
+              className="w-full py-2 rounded-lg border border-dashed border-stone-300 text-xs font-medium text-stone-500 hover:border-gold-400 hover:text-gold-600 transition-colors cursor-pointer"
+            >
+              + Add Speech to {event?.label}
+            </button>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <Input
-              label="Relationship"
-              value={speech.relationship}
-              onChange={(e) => updateSpeech(speech.id, 'relationship', e.target.value)}
-              placeholder="e.g., Best Man"
-            />
-            <Input
-              label="After which moment?"
-              value={speech.afterMoment}
-              onChange={(e) => updateSpeech(speech.id, 'afterMoment', e.target.value)}
-              placeholder="e.g., Grand Entrance"
-            />
-            <Select
-              label="Event"
-              options={events.map((e) => ({ value: e, label: eventOptions.find((o) => o.id === e)?.label }))}
-              value={speech.event}
-              onChange={(e) => updateSpeech(speech.id, 'event', e.target.value)}
-            />
-          </div>
-        </Card>
-      ))}
-      <Button variant="secondary" size="sm" onClick={addSpeech}>
-        + Add Speech
-      </Button>
+        );
+      })}
     </div>
   );
 }
@@ -402,43 +461,68 @@ function StepCeremony({ formData, setFormData }) {
   return (
     <div className="space-y-6 animate-fade-in-up">
       <p className="text-stone-600">Select the ceremony traditions you're including.</p>
-      {ceremonyTraditions.map((tradition) => (
-        <div key={tradition.id} className="border border-stone-200 rounded-lg p-4">
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={selected.includes(tradition.id)}
-              onChange={() => toggleTradition(tradition.id)}
-              className="rounded"
-            />
-            <span className="text-sm font-medium text-stone-800">{tradition.label}</span>
-          </label>
-          {selected.includes(tradition.id) && (
-            <div className="mt-3 pl-7">
-              {songs[tradition.id] ? (
-                <div className="flex items-center gap-2 text-sm text-stone-600">
-                  <span>🎵 {songs[tradition.id].name} — {songs[tradition.id].artist}</span>
-                  <button
-                    onClick={() => setFormData((prev) => {
-                      const next = { ...prev.ceremonySongs };
-                      delete next[tradition.id];
-                      return { ...prev, ceremonySongs: next };
-                    })}
-                    className="text-stone-400 hover:text-red-500 cursor-pointer"
-                  >
-                    ✕
-                  </button>
-                </div>
-              ) : (
-                <MusicSearch
-                  onSelect={(track) => setSong(tradition.id, track)}
-                  placeholder={`Search song for ${tradition.label}...`}
-                />
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        {ceremonyTraditions.map((tradition) => {
+          const isSelected = selected.includes(tradition.id);
+          return (
+            <button
+              key={tradition.id}
+              onClick={() => toggleTradition(tradition.id)}
+              className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all cursor-pointer text-center ${
+                isSelected
+                  ? 'border-gold-400 bg-gold-50 shadow-sm'
+                  : 'border-stone-200 hover:border-stone-300 bg-white'
+              }`}
+            >
+              <span className="text-3xl">{tradition.emoji}</span>
+              <span className={`text-sm font-medium ${isSelected ? 'text-gold-800' : 'text-stone-700'}`}>
+                {tradition.label}
+              </span>
+              <span className="text-xs text-stone-400 leading-tight">{tradition.description}</span>
+              {isSelected && (
+                <span className="text-xs text-gold-600 font-medium mt-1">Selected</span>
               )}
-            </div>
-          )}
+            </button>
+          );
+        })}
+      </div>
+
+      {selected.length > 0 && (
+        <div className="space-y-4 pt-4 border-t border-stone-200">
+          <p className="text-sm font-medium text-stone-700">Assign songs to your selected traditions:</p>
+          {selected.map((tradId) => {
+            const tradition = ceremonyTraditions.find((t) => t.id === tradId);
+            return (
+              <div key={tradId} className="bg-white rounded-lg border border-stone-200 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-lg">{tradition?.emoji}</span>
+                  <span className="text-sm font-medium text-stone-800">{tradition?.label}</span>
+                </div>
+                {songs[tradId] ? (
+                  <div className="flex items-center gap-2 text-sm text-stone-600">
+                    <span>🎵 {songs[tradId].name} — {songs[tradId].artist}</span>
+                    <button
+                      onClick={() => setFormData((prev) => {
+                        const next = { ...prev.ceremonySongs };
+                        delete next[tradId];
+                        return { ...prev, ceremonySongs: next };
+                      })}
+                      className="text-stone-400 hover:text-red-500 cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : (
+                  <MusicSearch
+                    onSelect={(track) => setSong(tradId, track)}
+                    placeholder={`Search song for ${tradition?.label}...`}
+                  />
+                )}
+              </div>
+            );
+          })}
         </div>
-      ))}
+      )}
     </div>
   );
 }
@@ -467,14 +551,28 @@ function StepReview({ formData }) {
                   const startMin = cumMinutes;
                   cumMinutes += block.duration || 0;
                   const blockType = timelineBlockTypes.find((b) => b.id === block.type);
+                  const hasPerf = block.type === 'performance' && (block.performerName || block.songName);
+                  const hasSpeech = block.type === 'speech' && block.speaker;
                   return (
                     <div key={block.id} className="relative">
                       <div className="absolute -left-[25px] w-3 h-3 rounded-full bg-gold-500 border-2 border-white" />
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-xs text-stone-400 w-12">+{startMin}m</span>
-                        <span className="text-sm">{blockType?.icon}</span>
-                        <span className="text-sm font-medium text-stone-700">{block.label}</span>
-                        <span className="text-xs text-stone-400">({block.duration}min)</span>
+                      <div>
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-xs text-stone-400 w-12">+{startMin}m</span>
+                          <span className="text-sm">{blockType?.icon}</span>
+                          <span className="text-sm font-medium text-stone-700">{block.label}</span>
+                          <span className="text-xs text-stone-400">({block.duration}min)</span>
+                        </div>
+                        {hasPerf && (
+                          <p className="text-xs text-stone-500 ml-14 mt-0.5">
+                            {block.performerName}{block.songName ? ` — "${block.songName}"` : ''}
+                          </p>
+                        )}
+                        {hasSpeech && (
+                          <p className="text-xs text-stone-500 ml-14 mt-0.5">
+                            {block.speaker}{block.relationship ? ` (${block.relationship})` : ''}
+                          </p>
+                        )}
                       </div>
                     </div>
                   );
