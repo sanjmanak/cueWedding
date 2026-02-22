@@ -45,7 +45,7 @@ export default function Phase1Story() {
       showCompletion={step === steps.length - 1}
     >
       {step === 0 && <StepNames formData={formData} updateField={updateField} />}
-      {step === 1 && <StepHowMet formData={formData} updateField={updateField} />}
+      {step === 1 && <StepHowMet formData={formData} updateField={updateField} setFormData={setFormData} />}
       {step === 2 && <StepEvents formData={formData} updateField={updateField} />}
       {step === 3 && <StepVenues formData={formData} updateNestedField={updateNestedField} setFormData={setFormData} />}
       {step === 4 && <StepGuestCounts formData={formData} updateNestedField={updateNestedField} />}
@@ -118,8 +118,17 @@ function StepNames({ formData, updateField }) {
   );
 }
 
-function StepHowMet({ formData, updateField }) {
+function StepHowMet({ formData, updateField, setFormData }) {
   const selectedOption = howMetOptions.find((o) => o.id === formData.howMet);
+
+  const selectHowMet = (optionId) => {
+    setFormData((prev) => ({
+      ...prev,
+      howMet: optionId,
+      howMetDetail: '',
+      datingApp: optionId === 'dating-app' ? prev.datingApp : '',
+    }));
+  };
 
   return (
     <div className="space-y-6 animate-fade-in-up">
@@ -137,11 +146,7 @@ function StepHowMet({ formData, updateField }) {
             {howMetOptions.map((option) => (
               <button
                 key={option.id}
-                onClick={() => {
-                  updateField('howMet', option.id);
-                  updateField('howMetDetail', '');
-                  if (option.id !== 'dating-app') updateField('datingApp', '');
-                }}
+                onClick={() => selectHowMet(option.id)}
                 className={`px-4 py-3 rounded-lg border text-sm font-medium transition-all cursor-pointer ${
                   formData.howMet === option.id
                     ? 'bg-gold-50 border-gold-400 text-gold-700'
