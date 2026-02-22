@@ -58,6 +58,18 @@ export const timelineBlockTypes = [
   { id: 'break', label: 'Break', icon: '⏸️', color: 'bg-stone-100 text-stone-800' },
 ];
 
+export const siblingAndPartyRoles = [
+  { group: 'Siblings', options: ['Sister', 'Brother', 'Step-Sister', 'Step-Brother'] },
+  { group: 'Wedding Party', options: ['Maid of Honor', 'Matron of Honor', 'Best Man', 'Bridesmaid', 'Groomsman', 'Junior Bridesmaid', 'Junior Groomsman', 'Flower Girl', 'Ring Bearer'] },
+];
+
+export const relativeRoles = [
+  { group: 'Grandparents', options: ['Grandmother', 'Grandfather', 'Great-Grandmother', 'Great-Grandfather'] },
+  { group: 'Aunts & Uncles', options: ['Aunt', 'Uncle'] },
+  { group: 'Cousins', options: ['Cousin'] },
+  { group: 'In-Laws', options: ['Mother-in-Law', 'Father-in-Law', 'Sister-in-Law', 'Brother-in-Law'] },
+];
+
 export const equipmentOptions = [
   'Subwoofers', 'Wireless Microphones', 'Uplighting', 'Intelligent Lighting',
   'Fog Machine', 'Cold Sparklers', 'Monogram Projection', 'Photo Booth Lighting',
@@ -128,7 +140,7 @@ export const defaultDemoData = {
   ],
   keyRelatives: [
     { id: '1', name: 'Dadi Shah', role: 'Grandmother', side: 'groom', pronunciation: true },
-    { id: '2', name: 'Meera Auntie', role: 'Favorite Aunt', side: 'bride', pronunciation: false },
+    { id: '2', name: 'Meera Auntie', role: 'Aunt', side: 'bride', pronunciation: false },
   ],
   otherVIPs: [
     { id: '1', name: 'Rohan Mehta', role: 'MC / Best Friend', side: 'groom', pronunciation: false },

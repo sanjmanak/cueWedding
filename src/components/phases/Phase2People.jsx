@@ -4,8 +4,10 @@ import { useFormData } from '../../context/FormDataContext';
 import { useToast } from '../../context/ToastContext';
 import PhaseWrapper from '../common/PhaseWrapper';
 import Input from '../common/Input';
+import Select from '../common/Select';
 import Button from '../common/Button';
 import Card from '../common/Card';
+import { siblingAndPartyRoles, relativeRoles } from '../../data/demoData';
 
 const steps = [
   'Immediate Family',
@@ -143,7 +145,7 @@ function StepFamily({ formData, updateNestedField }) {
   );
 }
 
-function PersonList({ items, updateField, fieldName, addToast, subtitle }) {
+function PersonList({ items, updateField, fieldName, addToast, subtitle, roleOptions }) {
   const addPerson = () => {
     const newPerson = { id: Date.now().toString(), name: '', role: '', side: 'bride', pronunciation: false };
     updateField(fieldName, [...(items || []), newPerson]);
@@ -157,6 +159,16 @@ function PersonList({ items, updateField, fieldName, addToast, subtitle }) {
   const removePerson = (id) => {
     updateField(fieldName, (items || []).filter((p) => p.id !== id));
     addToast('Removed', 'info', 1500);
+  };
+
+  const handleRoleChange = (person, value) => {
+    if (value === '__other') {
+      updatePerson(person.id, 'role', '');
+      updatePerson(person.id, '_customRole', true);
+    } else {
+      updatePerson(person.id, 'role', value);
+      updatePerson(person.id, '_customRole', false);
+    }
   };
 
   return (
@@ -183,12 +195,35 @@ function PersonList({ items, updateField, fieldName, addToast, subtitle }) {
               onChange={(e) => updatePerson(person.id, 'name', e.target.value)}
               placeholder="Full name"
             />
-            <Input
-              label="Role / Relationship"
-              value={person.role}
-              onChange={(e) => updatePerson(person.id, 'role', e.target.value)}
-              placeholder="e.g., Maid of Honor"
-            />
+            {roleOptions && !person._customRole ? (
+              <Select
+                label="Role / Relationship"
+                groupedOptions={roleOptions}
+                value={person.role}
+                onChange={(e) => handleRoleChange(person, e.target.value)}
+                placeholder="Select role..."
+              />
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                <Input
+                  label="Role / Relationship"
+                  value={person.role}
+                  onChange={(e) => updatePerson(person.id, 'role', e.target.value)}
+                  placeholder="e.g., Family Friend"
+                />
+                {roleOptions && person._customRole && (
+                  <button
+                    onClick={() => {
+                      updatePerson(person.id, 'role', '');
+                      updatePerson(person.id, '_customRole', false);
+                    }}
+                    className="text-xs text-gold-600 hover:text-gold-700 text-left cursor-pointer"
+                  >
+                    ← Back to dropdown
+                  </button>
+                )}
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-4 flex-wrap">
             <div className="flex gap-2">
@@ -243,6 +278,7 @@ function StepSiblings({ formData, updateField, addToast }) {
       fieldName="siblings"
       addToast={addToast}
       subtitle="Add siblings and members of the wedding party."
+      roleOptions={siblingAndPartyRoles}
     />
   );
 }
@@ -255,6 +291,7 @@ function StepRelatives({ formData, updateField, addToast }) {
       fieldName="keyRelatives"
       addToast={addToast}
       subtitle="Grandparents, aunts, uncles, or anyone with a special role."
+      roleOptions={relativeRoles}
     />
   );
 }
@@ -385,20 +422,60 @@ function StepAnnouncement({ formData, setFormData }) {
   );
 }
 
+function SummaryPersonRow({ person }) {
+  return (
+    <div className="flex items-center gap-3 bg-white rounded-lg border border-stone-200 p-3">
+      <div className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center text-stone-500 text-sm font-medium">
+        {person.name.charAt(0)}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-stone-800 truncate">{person.name}</p>
+        <p className="text-xs text-stone-400">{person.role}</p>
+      </div>
+    </div>
+  );
+}
+
+function SummaryGroup({ label, people }) {
+  if (people.length === 0) return null;
+  return (
+    <div>
+      <p className="text-xs tracking-widest uppercase text-stone-400 font-semibold mb-2">{label}</p>
+      <div className="space-y-2">
+        {people.map((person, i) => <SummaryPersonRow key={i} person={person} />)}
+      </div>
+    </div>
+  );
+}
+
 function Phase2Summary({ formData }) {
   const navigate = useNavigate();
 
-  const allPeople = [];
-  if (formData.brideParents?.father) allPeople.push({ name: formData.brideParents.father, role: "Bride's Father", side: 'bride' });
-  if (formData.brideParents?.mother) allPeople.push({ name: formData.brideParents.mother, role: "Bride's Mother", side: 'bride' });
-  if (formData.groomParents?.father) allPeople.push({ name: formData.groomParents.father, role: "Groom's Father", side: 'groom' });
-  if (formData.groomParents?.mother) allPeople.push({ name: formData.groomParents.mother, role: "Groom's Mother", side: 'groom' });
-  (formData.siblings || []).forEach((p) => { if (p.name) allPeople.push(p); });
-  (formData.keyRelatives || []).forEach((p) => { if (p.name) allPeople.push(p); });
-  (formData.otherVIPs || []).forEach((p) => { if (p.name) allPeople.push(p); });
+  // Build categorized lists
+  const parents = { bride: [], groom: [] };
+  if (formData.brideParents?.father) parents.bride.push({ name: formData.brideParents.father, role: "Father", side: 'bride' });
+  if (formData.brideParents?.mother) parents.bride.push({ name: formData.brideParents.mother, role: "Mother", side: 'bride' });
+  if (formData.groomParents?.father) parents.groom.push({ name: formData.groomParents.father, role: "Father", side: 'groom' });
+  if (formData.groomParents?.mother) parents.groom.push({ name: formData.groomParents.mother, role: "Mother", side: 'groom' });
 
-  const brideSide = allPeople.filter((p) => p.side === 'bride');
-  const groomSide = allPeople.filter((p) => p.side === 'groom');
+  const siblings = { bride: [], groom: [] };
+  (formData.siblings || []).filter(p => p.name).forEach(p => {
+    siblings[p.side || 'bride'].push(p);
+  });
+
+  const relatives = { bride: [], groom: [] };
+  (formData.keyRelatives || []).filter(p => p.name).forEach(p => {
+    relatives[p.side || 'bride'].push(p);
+  });
+
+  const vips = { bride: [], groom: [] };
+  (formData.otherVIPs || []).filter(p => p.name).forEach(p => {
+    vips[p.side || 'bride'].push(p);
+  });
+
+  const totalBride = parents.bride.length + siblings.bride.length + relatives.bride.length + vips.bride.length;
+  const totalGroom = parents.groom.length + siblings.groom.length + relatives.groom.length + vips.groom.length;
+  const totalPeople = totalBride + totalGroom;
   const pronunciationCount = Object.keys(formData.pronunciations || {}).length;
 
   return (
@@ -417,41 +494,44 @@ function Phase2Summary({ formData }) {
       {/* Stats bar */}
       <div className="grid grid-cols-3 gap-3">
         <Card className="p-4 text-center">
-          <p className="text-2xl font-heading font-semibold text-gold-600">{allPeople.length}</p>
+          <p className="text-2xl font-heading font-semibold text-gold-600">{totalPeople}</p>
           <p className="text-xs text-stone-500 mt-1">Total People</p>
         </Card>
         <Card className="p-4 text-center">
-          <p className="text-2xl font-heading font-semibold text-gold-600">{brideSide.length}</p>
+          <p className="text-2xl font-heading font-semibold text-gold-600">{totalBride}</p>
           <p className="text-xs text-stone-500 mt-1">Bride's Side</p>
         </Card>
         <Card className="p-4 text-center">
-          <p className="text-2xl font-heading font-semibold text-gold-600">{groomSide.length}</p>
+          <p className="text-2xl font-heading font-semibold text-gold-600">{totalGroom}</p>
           <p className="text-xs text-stone-500 mt-1">Groom's Side</p>
         </Card>
       </div>
 
-      {/* People list */}
-      {allPeople.length > 0 && (
-        <div>
-          <p className="text-xs tracking-widest uppercase text-gold-600 font-semibold mb-3">Your People</p>
-          <div className="space-y-2">
-            {allPeople.map((person, i) => (
-              <div key={i} className="flex items-center gap-3 bg-white rounded-lg border border-stone-200 p-3">
-                <div className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center text-stone-500 text-sm font-medium">
-                  {person.name.charAt(0)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-stone-800 truncate">{person.name}</p>
-                  <p className="text-xs text-stone-400">{person.role}</p>
-                </div>
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                  person.side === 'bride' ? 'bg-pink-50 text-pink-600' : 'bg-blue-50 text-blue-600'
-                }`}>
-                  {person.side === 'bride' ? "Bride" : "Groom"}
-                </span>
-              </div>
-            ))}
+      {/* Bride's Side */}
+      {totalBride > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <span className="text-xs tracking-widest uppercase text-pink-500 font-semibold">Bride's Side</span>
+            <span className="flex-1 border-t border-stone-200" />
           </div>
+          <SummaryGroup label="Parents" people={parents.bride} />
+          <SummaryGroup label="Siblings & Wedding Party" people={siblings.bride} />
+          <SummaryGroup label="Key Relatives" people={relatives.bride} />
+          <SummaryGroup label="Other VIPs" people={vips.bride} />
+        </div>
+      )}
+
+      {/* Groom's Side */}
+      {totalGroom > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <span className="text-xs tracking-widest uppercase text-blue-500 font-semibold">Groom's Side</span>
+            <span className="flex-1 border-t border-stone-200" />
+          </div>
+          <SummaryGroup label="Parents" people={parents.groom} />
+          <SummaryGroup label="Siblings & Wedding Party" people={siblings.groom} />
+          <SummaryGroup label="Key Relatives" people={relatives.groom} />
+          <SummaryGroup label="Other VIPs" people={vips.groom} />
         </div>
       )}
 
