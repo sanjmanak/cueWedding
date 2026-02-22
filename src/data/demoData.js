@@ -140,11 +140,11 @@ export const defaultDemoData = {
 
   // Phase 3: Your Soundtrack
   mustPlaySongs: [
-    { id: '1', spotifyId: '3Wrjm47oTz2sjIgck11l5e', name: 'Chaiyya Chaiyya', artist: 'Sukhwinder Singh', albumArt: '', event: 'sangeet' },
-    { id: '2', spotifyId: '0habROhZbOMfS1LYrcdlnr', name: 'London Thumakda', artist: 'Labh Janjua', albumArt: '', event: 'reception' },
+    { id: '1', trackId: '3Wrjm47oTz2sjIgck11l5e', name: 'Chaiyya Chaiyya', artist: 'Sukhwinder Singh', albumArt: '', event: 'sangeet' },
+    { id: '2', trackId: '0habROhZbOMfS1LYrcdlnr', name: 'London Thumakda', artist: 'Labh Janjua', albumArt: '', event: 'reception' },
   ],
   doNotPlaySongs: [
-    { id: '1', spotifyId: '', name: 'Cheap Thrills', artist: 'Sia', albumArt: '' },
+    { id: '1', trackId: '', name: 'Cheap Thrills', artist: 'Sia', albumArt: '' },
   ],
   eventVibes: {
     mehndi: 'Romantic & Soft',
@@ -153,14 +153,14 @@ export const defaultDemoData = {
     reception: 'Elegant Dinner → Party',
   },
   specialMoments: {
-    firstDance: { type: 'song', name: 'Perfect', artist: 'Ed Sheeran', spotifyId: '0tgVpDi06FyKpA1z0VMD4v' },
-    fatherDaughter: { type: 'song', name: 'Mere Papa', artist: 'Tulsi Kumar', spotifyId: '' },
+    firstDance: { type: 'song', name: 'Perfect', artist: 'Ed Sheeran', trackId: '0tgVpDi06FyKpA1z0VMD4v' },
+    fatherDaughter: { type: 'song', name: 'Mere Papa', artist: 'Tulsi Kumar', trackId: '' },
     motherSon: { type: 'skip' },
     coupleEntrance: { type: 'surprise' },
     lastSong: { type: 'dj-choice' },
   },
   customMixes: [],
-  spotifyPlaylistUrl: '',
+  playlistUrl: '',
 
   // Phase 4: Your Program
   eventTemplates: {

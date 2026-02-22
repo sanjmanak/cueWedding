@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { useSpotify } from '../../hooks/useSpotify';
+import { useMusic } from '../../hooks/useMusic';
 
-export default function SpotifySearch({ onSelect, placeholder = 'Search for a song...' }) {
-  const { results, loading, search, clearResults } = useSpotify();
+export default function MusicSearch({ onSelect, placeholder = 'Search for a song...' }) {
+  const { results, loading, search, clearResults, playPreview, stopPreview } = useMusic();
   const [query, setQuery] = useState('');
+  const [playingId, setPlayingId] = useState(null);
 
   const handleChange = (e) => {
     const val = e.target.value;
@@ -12,9 +13,22 @@ export default function SpotifySearch({ onSelect, placeholder = 'Search for a so
   };
 
   const handleSelect = (track) => {
+    stopPreview();
+    setPlayingId(null);
     onSelect(track);
     setQuery('');
     clearResults();
+  };
+
+  const handlePreview = (e, track) => {
+    e.stopPropagation();
+    if (playingId === track.id) {
+      stopPreview();
+      setPlayingId(null);
+    } else if (track.previewUrl) {
+      playPreview(track.previewUrl);
+      setPlayingId(track.id);
+    }
   };
 
   return (
@@ -36,12 +50,12 @@ export default function SpotifySearch({ onSelect, placeholder = 'Search for a so
       </div>
 
       {results.length > 0 && (
-        <div className="absolute z-30 w-full mt-1 bg-white border border-stone-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+        <div className="absolute z-30 w-full mt-1 bg-white border border-stone-200 rounded-lg shadow-lg max-h-72 overflow-y-auto">
           {results.map((track) => (
-            <button
+            <div
               key={track.id}
               onClick={() => handleSelect(track)}
-              className="w-full flex items-center gap-3 px-3 py-2 hover:bg-stone-50 text-left transition-colors cursor-pointer"
+              className="flex items-center gap-3 px-3 py-2 hover:bg-stone-50 cursor-pointer transition-colors"
             >
               {track.albumArt ? (
                 <img src={track.albumArt} alt="" className="w-10 h-10 rounded object-cover" />
@@ -54,8 +68,21 @@ export default function SpotifySearch({ onSelect, placeholder = 'Search for a so
                 <p className="text-sm font-medium text-stone-900 truncate">{track.name}</p>
                 <p className="text-xs text-stone-500 truncate">{track.artist}</p>
               </div>
+              {track.previewUrl && (
+                <button
+                  onClick={(e) => handlePreview(e, track)}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-xs transition-colors cursor-pointer ${
+                    playingId === track.id
+                      ? 'bg-gold-100 text-gold-700'
+                      : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
+                  }`}
+                  title={playingId === track.id ? 'Stop preview' : 'Play 30s preview'}
+                >
+                  {playingId === track.id ? '⏸' : '▶'}
+                </button>
+              )}
               <span className="text-xs text-stone-400">{track.duration}</span>
-            </button>
+            </div>
           ))}
         </div>
       )}

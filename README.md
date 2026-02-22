@@ -5,7 +5,7 @@ A premium React single-page application for planning Indian wedding entertainmen
 ## Features
 
 - **6-Phase Planning Flow**: Story, People, Soundtrack, Program, Details, Review
-- **Spotify Integration**: Search and add songs via Spotify Web API (with demo fallback)
+- **iTunes Music Search**: Search songs via iTunes API (free, no auth required) with 30-second audio previews
 - **PDF Run Sheet Generation**: Download a complete run sheet for the DJ team
 - **Demo Mode**: Pre-filled with sample data, localStorage persistence
 - **Mobile-First Design**: Elegant, luxury-inspired aesthetic with Tailwind CSS
@@ -16,6 +16,7 @@ A premium React single-page application for planning Indian wedding entertainmen
 - Vite 7 for build tooling
 - Tailwind CSS v4
 - React Router v7 (HashRouter for GitHub Pages)
+- iTunes Search API for song lookup
 - jsPDF for PDF generation
 - canvas-confetti for celebrations
 
@@ -26,16 +27,7 @@ npm install
 npm run dev
 ```
 
-## Spotify API (Optional)
-
-Create a `.env` file with your Spotify credentials:
-
-```
-VITE_SPOTIFY_CLIENT_ID=your_client_id
-VITE_SPOTIFY_CLIENT_SECRET=your_client_secret
-```
-
-Without these, the app uses demo/mock search results.
+No API keys needed — the iTunes Search API is free and requires no authentication.
 
 ## Deployment
 

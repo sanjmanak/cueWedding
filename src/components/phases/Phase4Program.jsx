@@ -6,7 +6,7 @@ import Card from '../common/Card';
 import Button from '../common/Button';
 import Input from '../common/Input';
 import Select from '../common/Select';
-import SpotifySearch from '../features/SpotifySearch';
+import MusicSearch from '../features/MusicSearch';
 import {
   eventOptions, templateOptions, timelineBlockTypes, ceremonyTraditions,
 } from '../../data/demoData';
@@ -430,7 +430,7 @@ function StepCeremony({ formData, setFormData }) {
                   </button>
                 </div>
               ) : (
-                <SpotifySearch
+                <MusicSearch
                   onSelect={(track) => setSong(tradition.id, track)}
                   placeholder={`Search song for ${tradition.label}...`}
                 />

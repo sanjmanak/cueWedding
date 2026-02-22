@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useFormData } from '../../context/FormDataContext';
 import { useToast } from '../../context/ToastContext';
 import PhaseWrapper from '../common/PhaseWrapper';
-import SpotifySearch from '../features/SpotifySearch';
+import MusicSearch from '../features/MusicSearch';
 import Select from '../common/Select';
 import Input from '../common/Input';
 import Card from '../common/Card';
@@ -16,7 +16,7 @@ const steps = [
   'Vibe by Event',
   'Special Moments',
   'Custom Mixes',
-  'Spotify Playlists',
+  'Playlist Import',
 ];
 
 export default function Phase3Soundtrack() {
@@ -44,7 +44,7 @@ export default function Phase3Soundtrack() {
       {step === 2 && <StepVibeByEvent formData={formData} setFormData={setFormData} />}
       {step === 3 && <StepSpecialMoments formData={formData} setFormData={setFormData} />}
       {step === 4 && <StepCustomMixes formData={formData} updateField={updateField} addToast={addToast} />}
-      {step === 5 && <StepSpotifyImport formData={formData} />}
+      {step === 5 && <StepPlaylistImport formData={formData} />}
     </PhaseWrapper>
   );
 }
@@ -89,7 +89,7 @@ function StepMustPlay({ formData, setFormData, addToast }) {
   const addSong = (track) => {
     const newSong = {
       id: Date.now().toString(),
-      spotifyId: track.id,
+      trackId: track.id,
       name: track.name,
       artist: track.artist,
       albumArt: track.albumArt || '',
@@ -119,7 +119,7 @@ function StepMustPlay({ formData, setFormData, addToast }) {
         onChange={(e) => setSelectedEvent(e.target.value)}
       />
 
-      <SpotifySearch onSelect={addSong} placeholder="Search songs to add..." />
+      <MusicSearch onSelect={addSong} placeholder="Search songs to add..." />
 
       <SongList songs={songs} onRemove={removeSong} />
 
@@ -134,7 +134,7 @@ function StepDoNotPlay({ formData, setFormData, addToast }) {
   const addSong = (track) => {
     const newSong = {
       id: Date.now().toString(),
-      spotifyId: track.id,
+      trackId: track.id,
       name: track.name,
       artist: track.artist,
       albumArt: track.albumArt || '',
@@ -156,7 +156,7 @@ function StepDoNotPlay({ formData, setFormData, addToast }) {
         </p>
       </div>
 
-      <SpotifySearch onSelect={addSong} placeholder="Search songs to ban..." />
+      <MusicSearch onSelect={addSong} placeholder="Search songs to ban..." />
 
       <SongList songs={songs} onRemove={removeSong} />
     </div>
@@ -282,8 +282,8 @@ function StepSpecialMoments({ formData, setFormData }) {
                     </button>
                   </div>
                 ) : (
-                  <SpotifySearch
-                    onSelect={(track) => updateMoment(key, { type: 'song', name: track.name, artist: track.artist, spotifyId: track.id })}
+                  <MusicSearch
+                    onSelect={(track) => updateMoment(key, { type: 'song', name: track.name, artist: track.artist, trackId: track.id, previewUrl: track.previewUrl })}
                     placeholder={`Search for ${label.toLowerCase()} song...`}
                   />
                 )}
@@ -357,33 +357,33 @@ function StepCustomMixes({ formData, updateField, addToast }) {
   );
 }
 
-function StepSpotifyImport() {
+function StepPlaylistImport() {
   return (
     <div className="space-y-6 animate-fade-in-up">
-      <p className="text-stone-600">Import songs directly from your Spotify playlists.</p>
+      <p className="text-stone-600">Have a playlist you'd like us to reference? Share it here.</p>
 
       <Card className="p-8 text-center">
         <div className="text-4xl mb-4">🎵</div>
-        <h3 className="font-heading text-xl font-semibold text-stone-800 mb-2">Connect to Spotify</h3>
+        <h3 className="font-heading text-xl font-semibold text-stone-800 mb-2">Share a Playlist</h3>
         <p className="text-sm text-stone-500 mb-6">
-          Link your Spotify account to import playlists and songs directly.
+          Paste a link to your Spotify, Apple Music, or YouTube Music playlist.
+          We'll use it as inspiration for your event soundtrack.
         </p>
-        <Button variant="primary" size="lg" onClick={() => alert('Spotify OAuth would connect here in production. This is a demo.')}>
-          Connect Spotify
+        <input
+          type="url"
+          placeholder="https://open.spotify.com/playlist/... or any playlist link"
+          className="w-full px-4 py-3 rounded-lg border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400 focus:border-transparent mb-4"
+        />
+        <Button variant="primary" size="md" onClick={() => alert('Playlist link saved! Your DJ will review it.')}>
+          Save Playlist Link
         </Button>
-        <p className="text-xs text-stone-400 mt-3">
-          Demo mode — Spotify connection simulated
-        </p>
       </Card>
 
-      <div className="bg-stone-50 rounded-lg p-4">
-        <h4 className="text-sm font-medium text-stone-700 mb-3">Your Playlists (Demo)</h4>
-        {['Wedding Vibes 💍', 'Bollywood Bangers 🇮🇳', 'Reception Party Mix 🎉'].map((pl) => (
-          <div key={pl} className="flex items-center justify-between py-2 border-b border-stone-200 last:border-0">
-            <span className="text-sm text-stone-600">{pl}</span>
-            <Button variant="ghost" size="sm">Import</Button>
-          </div>
-        ))}
+      <div className="bg-gold-50 border border-gold-200 rounded-lg p-4">
+        <p className="text-gold-800 text-sm">
+          💡 Tip: Even if you've added must-play songs above, sharing a full playlist helps us
+          understand your overall taste and fill in the gaps between key moments.
+        </p>
       </div>
     </div>
   );
