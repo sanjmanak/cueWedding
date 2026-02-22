@@ -163,11 +163,13 @@ function PersonList({ items, updateField, fieldName, addToast, subtitle, roleOpt
 
   const handleRoleChange = (person, value) => {
     if (value === '__other') {
-      updatePerson(person.id, 'role', '');
-      updatePerson(person.id, '_customRole', true);
+      updateField(fieldName, (items || []).map((p) =>
+        p.id === person.id ? { ...p, role: '', _customRole: true } : p
+      ));
     } else {
-      updatePerson(person.id, 'role', value);
-      updatePerson(person.id, '_customRole', false);
+      updateField(fieldName, (items || []).map((p) =>
+        p.id === person.id ? { ...p, role: value, _customRole: false } : p
+      ));
     }
   };
 
