@@ -93,9 +93,11 @@ function StepTemplates({ formData, setFormData }) {
 function StepTimeline({ formData, setFormData, addToast }) {
   const events = formData.selectedEvents || [];
   const timelines = formData.timelines || {};
+  const startTimes = formData.eventStartTimes || {};
   const [activeEvent, setActiveEvent] = useState(events[0] || '');
 
   const blocks = timelines[activeEvent] || [];
+  const hasStartTime = !!startTimes[activeEvent];
 
   const addBlock = (type) => {
     const blockType = timelineBlockTypes.find((b) => b.id === type);
@@ -114,6 +116,21 @@ function StepTimeline({ formData, setFormData, addToast }) {
       },
     }));
     addToast('Block added!', 'success', 1500);
+  };
+
+  const setStartTime = (time) => {
+    setFormData((prev) => ({
+      ...prev,
+      eventStartTimes: { ...prev.eventStartTimes, [activeEvent]: time },
+    }));
+  };
+
+  const removeStartTime = () => {
+    setFormData((prev) => {
+      const next = { ...prev.eventStartTimes };
+      delete next[activeEvent];
+      return { ...prev, eventStartTimes: next };
+    });
   };
 
   const updateBlock = (id, field, value) => {
@@ -151,6 +168,14 @@ function StepTimeline({ formData, setFormData, addToast }) {
 
   const totalMinutes = blocks.reduce((sum, b) => sum + (b.duration || 0), 0);
 
+  const formatTime12 = (time24) => {
+    if (!time24) return '';
+    const [h, m] = time24.split(':').map(Number);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const hour = h % 12 || 12;
+    return `${hour}:${m.toString().padStart(2, '0')} ${ampm}`;
+  };
+
   return (
     <div className="space-y-6 animate-fade-in-up">
       <p className="text-stone-600">Build your event timeline by adding and ordering blocks.</p>
@@ -175,8 +200,37 @@ function StepTimeline({ formData, setFormData, addToast }) {
         })}
       </div>
 
+      {/* Start Time */}
+      {hasStartTime ? (
+        <div className="flex items-center gap-3 bg-gold-50 border border-gold-300 rounded-lg p-3">
+          <span className="text-lg">🕐</span>
+          <span className="text-sm font-medium text-gold-800">Start Time:</span>
+          <input
+            type="time"
+            value={startTimes[activeEvent] || ''}
+            onChange={(e) => setStartTime(e.target.value)}
+            className="px-3 py-1.5 rounded-lg border border-gold-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gold-400"
+          />
+          <span className="text-sm text-gold-600">{formatTime12(startTimes[activeEvent])}</span>
+          <button
+            onClick={removeStartTime}
+            className="ml-auto text-gold-400 hover:text-red-500 cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+      ) : null}
+
       {/* Add block buttons */}
       <div className="flex gap-2 flex-wrap">
+        {!hasStartTime && (
+          <button
+            onClick={() => setStartTime('19:00')}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium border border-dashed border-gold-400 text-gold-600 hover:bg-gold-50 transition-colors cursor-pointer"
+          >
+            🕐 + Start Time
+          </button>
+        )}
         {timelineBlockTypes.map((type) => (
           <button
             key={type.id}
@@ -225,6 +279,13 @@ function StepTimeline({ formData, setFormData, addToast }) {
       {blocks.length > 0 && (
         <p className="text-sm text-stone-500">
           Total: {Math.floor(totalMinutes / 60)}h {totalMinutes % 60}m
+          {hasStartTime && startTimes[activeEvent] && (() => {
+            const [h, m] = startTimes[activeEvent].split(':').map(Number);
+            const endMin = h * 60 + m + totalMinutes;
+            const endH = Math.floor(endMin / 60) % 12 || 12;
+            const endAmpm = Math.floor(endMin / 60) >= 12 ? 'PM' : 'AM';
+            return ` (${formatTime12(startTimes[activeEvent])} – ${endH}:${(endMin % 60).toString().padStart(2, '0')} ${endAmpm})`;
+          })()}
         </p>
       )}
     </div>
@@ -530,6 +591,25 @@ function StepCeremony({ formData, setFormData }) {
 function StepReview({ formData }) {
   const events = formData.selectedEvents || [];
   const timelines = formData.timelines || {};
+  const startTimes = formData.eventStartTimes || {};
+
+  const formatTime12 = (totalMinutes) => {
+    const h = Math.floor(totalMinutes / 60) % 12 || 12;
+    const m = totalMinutes % 60;
+    const ampm = Math.floor(totalMinutes / 60) % 24 >= 12 ? 'PM' : 'AM';
+    return `${h}:${m.toString().padStart(2, '0')} ${ampm}`;
+  };
+
+  const formatTimeRange = (startMin, endMin) => {
+    const startH = Math.floor(startMin / 60) % 12 || 12;
+    const endH = Math.floor(endMin / 60) % 12 || 12;
+    const startAmpm = Math.floor(startMin / 60) % 24 >= 12 ? 'PM' : 'AM';
+    const endAmpm = Math.floor(endMin / 60) % 24 >= 12 ? 'PM' : 'AM';
+    if (startAmpm === endAmpm) {
+      return `~${startH}–${endH} ${endAmpm}`;
+    }
+    return `~${startH} ${startAmpm}–${endH} ${endAmpm}`;
+  };
 
   return (
     <div className="space-y-8 animate-fade-in-up">
@@ -537,46 +617,91 @@ function StepReview({ formData }) {
       {events.map((eventId) => {
         const event = eventOptions.find((e) => e.id === eventId);
         const blocks = timelines[eventId] || [];
+        const startTime = startTimes[eventId];
+        let startTimeMinutes = null;
+        if (startTime) {
+          const [h, m] = startTime.split(':').map(Number);
+          startTimeMinutes = h * 60 + m;
+        }
         let cumMinutes = 0;
+
         return (
           <div key={eventId} className="space-y-3">
             <h3 className="font-heading text-xl font-semibold text-stone-800">
               {event?.emoji} {event?.label}
+              {startTimeMinutes !== null && (
+                <span className="ml-2 text-sm font-normal text-gold-600">
+                  {formatTime12(startTimeMinutes)} start
+                </span>
+              )}
             </h3>
             {blocks.length === 0 ? (
               <p className="text-sm text-stone-400 italic">No timeline blocks yet.</p>
             ) : (
               <div className="relative pl-6 border-l-2 border-gold-300 space-y-3">
-                {blocks.map((block) => {
+                {blocks.map((block, index) => {
                   const startMin = cumMinutes;
                   cumMinutes += block.duration || 0;
                   const blockType = timelineBlockTypes.find((b) => b.id === block.type);
                   const hasPerf = block.type === 'performance' && (block.performerName || block.songName);
                   const hasSpeech = block.type === 'speech' && block.speaker;
+
+                  // Show milestone timestamp every 4 items (after the 4th, 8th, etc.)
+                  const showMilestone = startTimeMinutes !== null && (index + 1) % 4 === 0 && index < blocks.length - 1;
+                  const milestoneTime = startTimeMinutes + cumMinutes;
+
+                  // Calculate a range: current time to ~30 min ahead
+                  const milestoneEndTime = milestoneTime + 30;
+
                   return (
-                    <div key={block.id} className="relative">
-                      <div className="absolute -left-[25px] w-3 h-3 rounded-full bg-gold-500 border-2 border-white" />
-                      <div>
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-xs text-stone-400 w-12">+{startMin}m</span>
-                          <span className="text-sm">{blockType?.icon}</span>
-                          <span className="text-sm font-medium text-stone-700">{block.label}</span>
-                          <span className="text-xs text-stone-400">({block.duration}min)</span>
+                    <div key={block.id}>
+                      <div className="relative">
+                        <div className="absolute -left-[25px] w-3 h-3 rounded-full bg-gold-500 border-2 border-white" />
+                        <div>
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-xs text-stone-400 w-16">
+                              {startTimeMinutes !== null
+                                ? formatTime12(startTimeMinutes + startMin)
+                                : `+${startMin}m`}
+                            </span>
+                            <span className="text-sm">{blockType?.icon}</span>
+                            <span className="text-sm font-medium text-stone-700">{block.label}</span>
+                            <span className="text-xs text-stone-400">({block.duration}min)</span>
+                          </div>
+                          {hasPerf && (
+                            <p className="text-xs text-stone-500 ml-[4.5rem] mt-0.5">
+                              {block.performerName}{block.songName ? ` — "${block.songName}"` : ''}
+                            </p>
+                          )}
+                          {hasSpeech && (
+                            <p className="text-xs text-stone-500 ml-[4.5rem] mt-0.5">
+                              {block.speaker}{block.relationship ? ` (${block.relationship})` : ''}
+                            </p>
+                          )}
                         </div>
-                        {hasPerf && (
-                          <p className="text-xs text-stone-500 ml-14 mt-0.5">
-                            {block.performerName}{block.songName ? ` — "${block.songName}"` : ''}
-                          </p>
-                        )}
-                        {hasSpeech && (
-                          <p className="text-xs text-stone-500 ml-14 mt-0.5">
-                            {block.speaker}{block.relationship ? ` (${block.relationship})` : ''}
-                          </p>
-                        )}
                       </div>
+                      {showMilestone && (
+                        <div className="relative mt-2 mb-1">
+                          <div className="absolute -left-[25px] w-3 h-3 rounded-full bg-gold-300 border-2 border-gold-100" />
+                          <div className="bg-gold-50 border border-gold-200 rounded-md px-3 py-1.5 inline-block">
+                            <span className="text-xs font-medium text-gold-700">
+                              Estimated {formatTimeRange(milestoneTime, milestoneEndTime)}
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
+                {/* End time */}
+                {startTimeMinutes !== null && blocks.length > 0 && (
+                  <div className="relative">
+                    <div className="absolute -left-[25px] w-3 h-3 rounded-full bg-stone-400 border-2 border-white" />
+                    <span className="text-xs font-medium text-stone-500">
+                      Estimated end: {formatTime12(startTimeMinutes + cumMinutes)}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
           </div>

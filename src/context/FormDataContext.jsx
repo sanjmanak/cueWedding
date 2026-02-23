@@ -1,6 +1,6 @@
 import { createContext, useContext, useCallback } from 'react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
-import { defaultDemoData } from '../data/demoData';
+import { defaultDemoData, blankFormData } from '../data/demoData';
 
 const FormDataContext = createContext(null);
 
@@ -22,12 +22,16 @@ export function FormDataProvider({ children }) {
     setFormData(defaultDemoData);
   }, [setFormData]);
 
+  const resetToBlank = useCallback(() => {
+    setFormData({ ...blankFormData });
+  }, [setFormData]);
+
   const clearAll = useCallback(() => {
     removeFormData();
   }, [removeFormData]);
 
   return (
-    <FormDataContext.Provider value={{ formData, setFormData, updateField, updateNestedField, resetToDemo, clearAll }}>
+    <FormDataContext.Provider value={{ formData, setFormData, updateField, updateNestedField, resetToDemo, resetToBlank, clearAll }}>
       {children}
     </FormDataContext.Provider>
   );
