@@ -15,7 +15,7 @@ const steps = [
   'The Couple',
   'How You Met',
   'Your Events',
-  'Venue Details',
+  'Venue & Date Details',
   'Guest Counts',
   'Vibe Check',
   'Phase 1 Complete!',
@@ -260,10 +260,15 @@ function StepEvents({ formData, updateField }) {
 function StepVenues({ formData, updateNestedField, setFormData }) {
   const events = formData.selectedEvents || [];
   const venues = formData.eventVenues || {};
+  const eventDates = formData.eventDates || {};
 
   const updateVenue = (eventId, field, value) => {
     const current = venues[eventId] || {};
     updateNestedField('eventVenues', eventId, { ...current, [field]: value });
+  };
+
+  const updateEventDate = (eventId, date) => {
+    updateNestedField('eventDates', eventId, date);
   };
 
   const linkVenue = (eventId, linkedEventId) => {
@@ -288,10 +293,20 @@ function StepVenues({ formData, updateNestedField, setFormData }) {
       .filter((e) => venues[e]?.name);
   };
 
+  const formatDatePreview = (dateStr) => {
+    if (!dateStr) return '';
+    return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  };
+
   return (
     <div className="space-y-6 animate-fade-in-up">
       <div className="text-center mb-2">
-        <p className="text-stone-500">Where is each event happening?</p>
+        <p className="text-stone-500">Where and when is each event happening?</p>
       </div>
       {events.map((eventId) => {
         const event = eventOptions.find((e) => e.id === eventId);
@@ -304,6 +319,20 @@ function StepVenues({ formData, updateNestedField, setFormData }) {
             <div className="flex items-center gap-3">
               <span className="text-2xl">{event?.emoji}</span>
               <h3 className="font-heading text-lg font-semibold text-stone-800">{event?.label}</h3>
+            </div>
+
+            {/* Event date picker */}
+            <div>
+              <label className="text-sm font-medium text-stone-700 mb-1.5 block">Event Date</label>
+              <input
+                type="date"
+                value={eventDates[eventId] || ''}
+                onChange={(e) => updateEventDate(eventId, e.target.value)}
+                className="w-full sm:w-auto px-4 py-2.5 rounded-lg border border-stone-300 text-sm text-stone-800 hover:border-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-400 focus:border-transparent"
+              />
+              {eventDates[eventId] && (
+                <p className="text-xs text-stone-400 mt-1">{formatDatePreview(eventDates[eventId])}</p>
+              )}
             </div>
 
             {previousEvents.length > 0 && (
@@ -513,6 +542,7 @@ function Phase1Summary({ formData }) {
   const events = formData.selectedEvents || [];
   const venues = formData.eventVenues || {};
   const counts = formData.eventGuestCounts || {};
+  const eventDates = formData.eventDates || {};
   const metOption = howMetOptions.find((o) => o.id === formData.howMet);
 
   const formatDate = (dateStr) => {
@@ -521,6 +551,15 @@ function Phase1Summary({ formData }) {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
+      day: 'numeric',
+    });
+  };
+
+  const formatShortDate = (dateStr) => {
+    if (!dateStr) return '';
+    return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
       day: 'numeric',
     });
   };
@@ -566,11 +605,15 @@ function Phase1Summary({ formData }) {
             const event = eventOptions.find((e) => e.id === eventId);
             const venue = venues[eventId];
             const count = counts[eventId];
+            const eventDate = eventDates[eventId];
             return (
               <div key={eventId} className="flex items-center gap-4 bg-white rounded-lg border border-stone-200 p-4">
                 <span className="text-2xl">{event?.emoji}</span>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-stone-800">{event?.label}</p>
+                  <p className="font-medium text-stone-800">
+                    {event?.label}
+                    {eventDate && <span className="ml-2 text-xs text-stone-400 font-normal">{formatShortDate(eventDate)}</span>}
+                  </p>
                   {venue?.name && (
                     <p className="text-sm text-stone-500 truncate">
                       {venue.name}

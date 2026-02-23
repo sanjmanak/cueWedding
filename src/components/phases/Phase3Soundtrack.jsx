@@ -44,7 +44,7 @@ export default function Phase3Soundtrack() {
       {step === 2 && <StepVibeByEvent formData={formData} setFormData={setFormData} />}
       {step === 3 && <StepSpecialMoments formData={formData} setFormData={setFormData} />}
       {step === 4 && <StepCustomMixes formData={formData} updateField={updateField} addToast={addToast} />}
-      {step === 5 && <StepPlaylistImport formData={formData} />}
+      {step === 5 && <StepPlaylistImport formData={formData} updateField={updateField} />}
     </PhaseWrapper>
   );
 }
@@ -357,7 +357,7 @@ function StepCustomMixes({ formData, updateField, addToast }) {
   );
 }
 
-function StepPlaylistImport() {
+function StepPlaylistImport({ formData, updateField }) {
   return (
     <div className="space-y-6 animate-fade-in-up">
       <p className="text-stone-600">Have a playlist you'd like us to reference? Share it here.</p>
@@ -371,12 +371,14 @@ function StepPlaylistImport() {
         </p>
         <input
           type="url"
+          value={formData.playlistUrl || ''}
+          onChange={(e) => updateField('playlistUrl', e.target.value)}
           placeholder="https://open.spotify.com/playlist/... or any playlist link"
           className="w-full px-4 py-3 rounded-lg border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400 focus:border-transparent mb-4"
         />
-        <Button variant="primary" size="md" onClick={() => alert('Playlist link saved! Your DJ will review it.')}>
-          Save Playlist Link
-        </Button>
+        {formData.playlistUrl && (
+          <p className="text-xs text-emerald-600 mb-2">Playlist link saved automatically.</p>
+        )}
       </Card>
 
       <div className="bg-gold-50 border border-gold-200 rounded-lg p-4">

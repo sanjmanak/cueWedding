@@ -35,7 +35,7 @@ export const datingAppOptions = [
 ];
 
 export const guestCountOptions = [
-  '<100', '100-200', '200-300', '300-500', '500+',
+  '<100', '100-200', '200-300', '300-400', '400+',
 ];
 
 export const ceremonyTraditions = [
@@ -123,11 +123,17 @@ export const defaultDemoData = {
     ceremony: { name: 'Lakeside Pavilion', address: '789 Lake Dr, Houston, TX', setting: 'both' },
     reception: { name: 'Crystal Ballroom', address: '456 Main St, Houston, TX', setting: 'indoor', linkedTo: 'sangeet' },
   },
+  eventDates: {
+    mehndi: '2026-06-18',
+    sangeet: '2026-06-19',
+    ceremony: '2026-06-20',
+    reception: '2026-06-20',
+  },
   eventGuestCounts: {
     mehndi: '100-200',
     sangeet: '200-300',
     ceremony: '200-300',
-    reception: '300-500',
+    reception: '300-400',
   },
   vibeWords: ['Elegant', 'High Energy', 'Fusion'],
   bollywoodEra: 'Mix of Everything',
@@ -189,6 +195,10 @@ export const defaultDemoData = {
     sangeet: 'modern-performances',
     reception: 'classic-reception',
   },
+  eventStartTimes: {
+    sangeet: '19:00',
+    reception: '18:00',
+  },
   timelines: {
     sangeet: [
       { id: '1', type: 'dance-set', label: 'Guests Arrive - Background Music', duration: 30, details: '' },
@@ -227,6 +237,66 @@ export const defaultDemoData = {
   photoBooth: true,
   surprises: 'We want a special mashup for our couple dance that transitions from a slow song into a high-energy Bollywood number!',
   additionalNotes: 'Please coordinate with our videographer for any announcements. Also, Dadi (grandmother) will need a chair near the dance floor.',
+
+  // Phase 6: Sign-off
+  confirmed: false,
+  signatureName: '',
+  signatureDate: '',
+};
+
+// Completely blank form for true reset / fresh start
+export const blankFormData = {
+  // Phase 1: Your Story
+  brideName: '',
+  brideLastName: '',
+  groomName: '',
+  groomLastName: '',
+  firstEventDate: '',
+  howMet: '',
+  datingApp: '',
+  howMetDetail: '',
+  meetDetail: '',
+  selectedEvents: [],
+  eventVenues: {},
+  eventDates: {},
+  eventGuestCounts: {},
+  vibeWords: [],
+  bollywoodEra: '',
+  westernMusic: '',
+
+  // Phase 2: Your People
+  brideParents: { father: '', mother: '' },
+  groomParents: { father: '', mother: '' },
+  siblings: [],
+  keyRelatives: [],
+  otherVIPs: [],
+  pronunciations: {},
+  announcementStyles: {},
+
+  // Phase 3: Your Soundtrack
+  mustPlaySongs: [],
+  doNotPlaySongs: [],
+  eventVibes: {},
+  specialMoments: {},
+  customMixes: [],
+  playlistUrl: '',
+
+  // Phase 4: Your Program
+  eventTemplates: {},
+  timelines: {},
+  eventStartTimes: {},
+  performances: [],
+  speeches: [],
+  ceremonyTraditions: [],
+  ceremonySongs: {},
+
+  // Phase 5: Final Details
+  vendors: {},
+  lightingColor: '#d97706',
+  equipment: [],
+  photoBooth: false,
+  surprises: '',
+  additionalNotes: '',
 
   // Phase 6: Sign-off
   confirmed: false,
