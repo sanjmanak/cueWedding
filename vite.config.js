@@ -4,5 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  base: '/cueWedding/',
+  // Use '/' for Firebase Hosting (no subdirectory).
+  // The old '/cueWedding/' base was for GitHub Pages.
+  base: '/',
 })

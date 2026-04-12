@@ -1,8 +1,10 @@
 import { useFormData } from '../../context/FormDataContext';
+import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 
 export default function Footer() {
   const { resetToBlank, resetToDemo } = useFormData();
+  const { isDemo } = useAuth();
   const { addToast } = useToast();
 
   const handleReset = () => {
@@ -23,7 +25,7 @@ export default function Footer() {
     <footer className="border-t border-stone-200 bg-white mt-auto">
       <div className="max-w-6xl mx-auto px-4 py-6 flex flex-col sm:flex-row items-center justify-between gap-3">
         <p className="text-xs text-stone-400">
-          Cue — Wedding DJ Planning Platform &middot; Demo Mode
+          Cue — Wedding DJ Planning Platform{isDemo ? ' \u00B7 Demo Mode' : ''}
         </p>
         <div className="flex items-center gap-3">
           <button

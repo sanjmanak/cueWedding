@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useFormData } from '../../context/FormDataContext';
+import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 
 const phases = [
@@ -13,14 +14,22 @@ const phases = [
 
 export default function Header() {
   const { formData } = useFormData();
+  const { user, signOut, isDemo } = useAuth();
   const { addToast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
 
   const currentPhase = getCurrentPhase(location.pathname);
 
-  const handleSaveExit = () => {
+  const handleSaveExit = async () => {
     addToast('Progress saved!', 'success');
+    if (!isDemo) {
+      try {
+        await signOut();
+      } catch {
+        // Sign out failed, but still navigate to landing
+      }
+    }
     navigate('/');
   };
 
@@ -65,6 +74,11 @@ export default function Header() {
           {formData.brideName && formData.groomName && (
             <span className="hidden sm:inline text-sm font-medium text-stone-600">
               {formData.brideName} & {formData.groomName}
+            </span>
+          )}
+          {user && !isDemo && (
+            <span className="hidden lg:inline text-xs text-stone-400 truncate max-w-[140px]">
+              {user.email}
             </span>
           )}
           <button
