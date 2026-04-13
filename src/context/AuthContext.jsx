@@ -10,6 +10,7 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db, isFirebaseConfigured } from '../lib/firebase';
+import { getAuthEmailLinkUrl } from '../lib/authRedirect';
 
 const AuthContext = createContext(null);
 
@@ -131,7 +132,7 @@ export function AuthProvider({ children }) {
 
     setError(null);
     const actionCodeSettings = {
-      url: window.location.origin + '/',
+      url: getAuthEmailLinkUrl('/'),
       handleCodeInApp: true,
     };
 

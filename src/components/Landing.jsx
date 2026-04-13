@@ -3,6 +3,23 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Button from './common/Button';
 
+function getMagicLinkErrorMessage(err) {
+  switch (err?.code) {
+    case 'auth/invalid-email':
+      return 'Please enter a valid email address.';
+    case 'auth/unauthorized-continue-uri':
+      return 'Email link sign-in failed: this domain is not authorized in Firebase Auth. Add your deployed domain under Authentication → Settings → Authorized domains.';
+    case 'auth/argument-error':
+      return 'Email link sign-in failed due to invalid configuration. Verify your Firebase authDomain and authorized domains.';
+    case 'auth/operation-not-allowed':
+      return 'Email link sign-in is disabled in Firebase Authentication. Enable Email/Password + Email link.';
+    case 'auth/invalid-continue-uri':
+      return 'Email link sign-in failed because the continue URL is invalid. Check actionCodeSettings.url.';
+    default:
+      return 'Failed to send sign-in link. Please try again.';
+  }
+}
+
 export default function Landing() {
   const { user, loading, error, setError, isDemo, sendMagicLink, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
@@ -51,11 +68,7 @@ export default function Landing() {
       setMagicLinkSent(true);
     } catch (err) {
       console.error('Magic link error:', err);
-      if (err.code === 'auth/invalid-email') {
-        setError('Please enter a valid email address.');
-      } else {
-        setError('Failed to send sign-in link. Please try again.');
-      }
+      setError(getMagicLinkErrorMessage(err));
     } finally {
       setSending(false);
     }

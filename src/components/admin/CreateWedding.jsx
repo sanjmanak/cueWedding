@@ -2,8 +2,22 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { sendSignInLinkToEmail } from 'firebase/auth';
-import { db, auth, isFirebaseConfigured } from '../../lib/firebase';
+import { db, auth } from '../../lib/firebase';
+import { getAuthEmailLinkUrl } from '../../lib/authRedirect';
 import { blankFormData } from '../../data/demoData';
+
+function getInviteErrorMessage(email, err) {
+  switch (err?.code) {
+    case 'auth/unauthorized-continue-uri':
+      return `Failed to send invite to ${email}. Add this deployed domain to Firebase Auth → Settings → Authorized domains.`;
+    case 'auth/operation-not-allowed':
+      return `Failed to send invite to ${email}. Enable Email/Password and Email link sign-in in Firebase Auth.`;
+    case 'auth/invalid-email':
+      return `Failed to send invite to ${email}. The email address is invalid.`;
+    default:
+      return `Failed to send invite to ${email}. Make sure Email Link sign-in is enabled in Firebase Auth.`;
+  }
+}
 
 export default function CreateWedding() {
   const navigate = useNavigate();
@@ -61,7 +75,7 @@ export default function CreateWedding() {
         },
       });
 
-      const inviteUrl = `${window.location.origin}/?wedding=${weddingId}`;
+      const inviteUrl = getAuthEmailLinkUrl(`/?wedding=${weddingId}`);
       setCreated({ weddingId, inviteUrl });
     } catch (err) {
       console.error('Error creating wedding:', err);
@@ -86,7 +100,7 @@ export default function CreateWedding() {
       setInviteSent((prev) => ({ ...prev, [to]: true }));
     } catch (err) {
       console.error(`Error sending invite to ${to}:`, err);
-      setError(`Failed to send invite to ${email}. Make sure Email Link sign-in is enabled in Firebase Auth.`);
+      setError(getInviteErrorMessage(email, err));
     } finally {
       setSendingInvite((prev) => ({ ...prev, [to]: false }));
     }
