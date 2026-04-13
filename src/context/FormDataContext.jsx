@@ -1,5 +1,5 @@
 import { createContext, useContext, useCallback, useState, useEffect, useRef } from 'react';
-import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../lib/firebase';
 import { useAuth } from './AuthContext';
 import { useLocalStorage } from '../hooks/useLocalStorage';
@@ -9,7 +9,7 @@ const FormDataContext = createContext(null);
 
 const DEBOUNCE_MS = 1500;
 
-// Firestore-backed provider: real-time sync with debounced writes
+// Firestore-backed provider: load once, then debounced writes
 function FirestoreFormDataProvider({ weddingId, children }) {
   const [formData, setFormDataLocal] = useState(blankFormData);
   const [loaded, setLoaded] = useState(false);
@@ -18,7 +18,7 @@ function FirestoreFormDataProvider({ weddingId, children }) {
   const weddingRef = useRef(weddingId);
   useEffect(() => { weddingRef.current = weddingId; }, [weddingId]);
 
-  // Flush pending data to Firestore (defined first so useEffect can reference it)
+  // Flush pending data to Firestore
   const flushToFirestore = useCallback(() => {
     const data = pendingRef.current;
     const id = weddingRef.current;
@@ -32,32 +32,32 @@ function FirestoreFormDataProvider({ weddingId, children }) {
     }
   }, []);
 
-  // Subscribe to Firestore wedding document
+  // Load data from Firestore once on mount (no real-time listener to avoid race conditions)
   useEffect(() => {
-    if (!weddingId || !db) return;
+    if (!weddingId || !db) {
+      setLoaded(true);
+      return;
+    }
 
+    let cancelled = false;
     const docRef = doc(db, 'weddings', weddingId);
-    const unsubscribe = onSnapshot(
-      docRef,
-      (snap) => {
+
+    getDoc(docRef)
+      .then((snap) => {
+        if (cancelled) return;
         if (snap.exists()) {
-          const data = snap.data();
-          const formFields = data.formData || {};
-          // Only update local state if this isn't our own pending write
-          if (!pendingRef.current) {
-            setFormDataLocal(() => ({ ...blankFormData, ...formFields }));
-          }
+          const formFields = snap.data().formData || {};
+          setFormDataLocal({ ...blankFormData, ...formFields });
         }
         setLoaded(true);
-      },
-      (err) => {
-        console.error('Firestore snapshot error:', err);
-        setLoaded(true);
-      }
-    );
+      })
+      .catch((err) => {
+        console.error('Firestore load error:', err);
+        if (!cancelled) setLoaded(true);
+      });
 
     return () => {
-      unsubscribe();
+      cancelled = true;
       // Flush any pending writes on unmount
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
@@ -124,7 +124,7 @@ function FirestoreFormDataProvider({ weddingId, children }) {
     setFormData({ ...blankFormData });
   }, [setFormData]);
 
-  // Show loading state until first snapshot arrives
+  // Show loading state until data is loaded
   if (!loaded) {
     return (
       <FormDataContext.Provider
@@ -194,15 +194,10 @@ export function FormDataProvider({ children }) {
     return <LocalFormDataProvider>{children}</LocalFormDataProvider>;
   }
 
+  // If auth succeeded but weddingId failed to load (e.g. Firestore rules not deployed),
+  // fall back to localStorage so the user can still use the app
   if (!weddingId) {
-    // Auth is done but wedding not loaded yet — show blank state
-    return (
-      <FormDataContext.Provider
-        value={{ formData: blankFormData, setFormData: () => {}, updateField: () => {}, updateNestedField: () => {}, resetToDemo: () => {}, resetToBlank: () => {}, clearAll: () => {}, loading: true }}
-      >
-        {children}
-      </FormDataContext.Provider>
-    );
+    return <LocalFormDataProvider>{children}</LocalFormDataProvider>;
   }
 
   return (

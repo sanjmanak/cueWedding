@@ -31,41 +31,47 @@ export function AuthProvider({ children }) {
   const loadUserData = useCallback(async (firebaseUser) => {
     if (!db) return;
 
-    const userRef = doc(db, 'users', firebaseUser.uid);
-    const userSnap = await getDoc(userRef);
+    try {
+      const userRef = doc(db, 'users', firebaseUser.uid);
+      const userSnap = await getDoc(userRef);
 
-    if (userSnap.exists()) {
-      // Existing user — load their wedding
-      const userData = userSnap.data();
-      setWeddingId(userData.weddingId || null);
+      if (userSnap.exists()) {
+        // Existing user — load their wedding
+        const userData = userSnap.data();
+        setWeddingId(userData.weddingId || null);
 
-      // Update last login
-      await setDoc(userRef, { lastLoginAt: serverTimestamp() }, { merge: true });
-    } else {
-      // New user — create user doc + blank wedding
-      const newWeddingId = crypto.randomUUID();
+        // Update last login (fire and forget)
+        setDoc(userRef, { lastLoginAt: serverTimestamp() }, { merge: true }).catch(() => {});
+      } else {
+        // New user — create user doc + blank wedding
+        const newWeddingId = crypto.randomUUID();
 
-      await setDoc(doc(db, 'weddings', newWeddingId), {
-        formData: {},
-        meta: {
-          ownerUids: [firebaseUser.uid],
+        await setDoc(doc(db, 'weddings', newWeddingId), {
+          formData: {},
+          meta: {
+            ownerUids: [firebaseUser.uid],
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+            status: 'active',
+          },
+        });
+
+        await setDoc(userRef, {
+          email: firebaseUser.email || '',
+          phone: firebaseUser.phoneNumber || '',
+          role: 'couple',
+          weddingId: newWeddingId,
+          displayName: firebaseUser.displayName || '',
           createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-          status: 'active',
-        },
-      });
+          lastLoginAt: serverTimestamp(),
+        });
 
-      await setDoc(userRef, {
-        email: firebaseUser.email || '',
-        phone: firebaseUser.phoneNumber || '',
-        role: 'couple',
-        weddingId: newWeddingId,
-        displayName: firebaseUser.displayName || '',
-        createdAt: serverTimestamp(),
-        lastLoginAt: serverTimestamp(),
-      });
-
-      setWeddingId(newWeddingId);
+        setWeddingId(newWeddingId);
+      }
+    } catch (err) {
+      console.error('Firestore setup error:', err);
+      // Even if Firestore fails, don't block the user.
+      // FormDataProvider will fall back to localStorage.
     }
   }, []);
 
