@@ -23,6 +23,7 @@ export function AuthProvider({ children }) {
   // In demo mode, initialize state directly to avoid effects
   const [user, setUser] = useState(() => (isFirebaseConfigured ? null : DEMO_USER));
   const [weddingId, setWeddingId] = useState(() => (isFirebaseConfigured ? null : DEMO_WEDDING_ID));
+  const [isAdmin, setIsAdmin] = useState(!isFirebaseConfigured); // Demo mode = admin
   const [loading, setLoading] = useState(isFirebaseConfigured);
   const [error, setError] = useState(null);
   const magicLinkHandled = useRef(false);
@@ -36,9 +37,10 @@ export function AuthProvider({ children }) {
       const userSnap = await getDoc(userRef);
 
       if (userSnap.exists()) {
-        // Existing user — load their wedding
+        // Existing user — load their wedding and role
         const userData = userSnap.data();
         setWeddingId(userData.weddingId || null);
+        setIsAdmin(userData.role === 'admin');
 
         // Update last login (fire and forget)
         setDoc(userRef, { lastLoginAt: serverTimestamp() }, { merge: true }).catch(() => {});
@@ -115,6 +117,7 @@ export function AuthProvider({ children }) {
       } else {
         setUser(null);
         setWeddingId(null);
+        setIsAdmin(false);
       }
       setLoading(false);
     });
@@ -154,6 +157,7 @@ export function AuthProvider({ children }) {
   const value = {
     user,
     weddingId,
+    isAdmin,
     loading,
     error,
     setError,

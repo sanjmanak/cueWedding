@@ -9,6 +9,10 @@ import Phase3Soundtrack from './components/phases/Phase3Soundtrack';
 import Phase4Program from './components/phases/Phase4Program';
 import Phase5Details from './components/phases/Phase5Details';
 import Phase6Review from './components/phases/Phase6Review';
+import AdminLayout from './components/admin/AdminLayout';
+import AdminDashboard from './components/admin/AdminDashboard';
+import CreateWedding from './components/admin/CreateWedding';
+import WeddingDetail from './components/admin/WeddingDetail';
 
 function ProtectedRoute({ children }) {
   const { user, loading, isDemo } = useAuth();
@@ -33,22 +37,33 @@ function ProtectedRoute({ children }) {
 
 export default function App() {
   return (
-    <div className="min-h-screen flex flex-col bg-stone-50">
-      <Header />
-      <main className="flex-1">
-        <Routes>
-          <Route path="/" element={<Landing />} />
-          <Route path="/phase/1" element={<ProtectedRoute><Phase1Story /></ProtectedRoute>} />
-          <Route path="/phase/2" element={<ProtectedRoute><Phase2People /></ProtectedRoute>} />
-          <Route path="/phase/3" element={<ProtectedRoute><Phase3Soundtrack /></ProtectedRoute>} />
-          <Route path="/phase/4" element={<ProtectedRoute><Phase4Program /></ProtectedRoute>} />
-          <Route path="/phase/5" element={<ProtectedRoute><Phase5Details /></ProtectedRoute>} />
-          <Route path="/phase/6" element={<ProtectedRoute><Phase6Review /></ProtectedRoute>} />
-          {/* Catch-all redirect */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </main>
-      <Footer />
-    </div>
+    <Routes>
+      {/* Admin routes — separate layout, no couple header/footer */}
+      <Route path="/admin" element={<AdminLayout />}>
+        <Route index element={<AdminDashboard />} />
+        <Route path="weddings/new" element={<CreateWedding />} />
+        <Route path="weddings/:weddingId" element={<WeddingDetail />} />
+      </Route>
+
+      {/* Couple-facing routes */}
+      <Route path="*" element={
+        <div className="min-h-screen flex flex-col bg-stone-50">
+          <Header />
+          <main className="flex-1">
+            <Routes>
+              <Route path="/" element={<Landing />} />
+              <Route path="/phase/1" element={<ProtectedRoute><Phase1Story /></ProtectedRoute>} />
+              <Route path="/phase/2" element={<ProtectedRoute><Phase2People /></ProtectedRoute>} />
+              <Route path="/phase/3" element={<ProtectedRoute><Phase3Soundtrack /></ProtectedRoute>} />
+              <Route path="/phase/4" element={<ProtectedRoute><Phase4Program /></ProtectedRoute>} />
+              <Route path="/phase/5" element={<ProtectedRoute><Phase5Details /></ProtectedRoute>} />
+              <Route path="/phase/6" element={<ProtectedRoute><Phase6Review /></ProtectedRoute>} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </main>
+          <Footer />
+        </div>
+      } />
+    </Routes>
   );
 }

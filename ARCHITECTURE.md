@@ -439,23 +439,101 @@ Buckets are: `<100`, `100-200`, `200-300`, `300-400`, `400+`. These reflect typi
 
 ---
 
-## Known Limitations & Future Work
+## Firebase Backend
 
-### Current Limitations (Prototype)
-- **No real authentication** — magic link is simulated, no actual email sent
-- **localStorage only** — data is tied to one browser on one device
-- **No multi-user** — both partners can't collaborate simultaneously
-- **No save/resume across devices** — no cloud sync
-- **No admin dashboard** — DJ company can't pre-configure events or view submissions
+### Authentication
+- **Firebase Auth** with email magic link and Google sign-in
+- Email link: couple receives sign-in link via email, clicks to authenticate
+- Google: one-click sign-in via popup
+- Sessions persist across browser restarts
+- When Firebase is not configured (no `.env`), falls back to demo mode with localStorage
+
+### Firestore Data Model
+```
+users/{uid}
+  email: string
+  phone: string
+  role: 'couple' | 'admin'
+  weddingId: string
+  displayName: string
+  createdAt: Timestamp
+  lastLoginAt: Timestamp
+
+weddings/{weddingId}
+  formData: { ...all form fields from blankFormData... }
+  meta:
+    ownerUids: string[]
+    brideEmail: string
+    groomEmail: string
+    createdAt: Timestamp
+    updatedAt: Timestamp
+    status: 'active' | 'completed' | 'archived'
+```
+
+### Data Persistence
+- **Firestore mode** (Firebase configured): Data loaded once via `getDoc`, then debounced writes (1.5s) via `setDoc` with merge. Offline persistence enabled via `persistentLocalCache`.
+- **localStorage mode** (Firebase not configured): Original behavior, demo data pre-loaded.
+- The `FormDataProvider` automatically selects the right mode.
+
+### Firebase Hosting
+- Deployed to Firebase Hosting (replaces GitHub Pages for production)
+- SPA rewrite rules in `firebase.json`
+- BrowserRouter (no more HashRouter)
+- Deploy: `npm run deploy:firebase`
+
+---
+
+## Admin Dashboard
+
+### Access Control
+- Admin users have `role: 'admin'` in their Firestore user document
+- To make a user an admin: set their `role` field to `'admin'` in Firebase Console > Firestore > users collection
+- Admin routes at `/admin/*` are protected by role check in `AdminLayout`
+- Non-admin users see an "Access Denied" page
+
+### Admin Routes
+| Route | Component | Purpose |
+|-------|-----------|---------|
+| `/admin` | AdminDashboard | Stats cards + wedding list table |
+| `/admin/weddings/new` | CreateWedding | Create wedding + send invitations |
+| `/admin/weddings/:id` | WeddingDetail | Read-only view of couple's full data |
+
+### Admin Features (B0 — Current)
+- **Dashboard**: View all weddings with progress %, status badges, event dates
+- **Quick Stats**: Total weddings, in-progress, completed, needs attention
+- **Create Wedding**: Enter couple names/emails, auto-creates Firestore documents, generates invite link, sends magic link emails
+- **View Wedding**: Expandable read-only view of all 6 phases, progress per phase, PDF download
+
+### Admin Features (B1 — Planned)
+- Edit couple's data with audit trail
+- Send reminder nudges
+- Archive completed weddings
+- Team roles (lead DJ, MC, coordinator)
+- Filters and search
+
+---
+
+## Known Limitations & Current State
+
+### Completed
+- Real authentication (email magic link + Google sign-in)
+- Firestore cloud persistence (cross-device, cross-browser)
+- Admin dashboard with wedding management
+- Protected routes for both couple and admin flows
+- Firebase Hosting deployment
+
+### Remaining Limitations
+- **No multi-user editing** — both partners can't collaborate simultaneously (real-time sync not yet implemented)
+- **No audit trail** — changes are not logged with who/when
+- **No SMS notifications** — requires Twilio + Cloud Functions (Blaze plan)
 - **No song deduplication** — same song can be added to must-play and do-not-play
 - **PDF is basic** — functional but not visually polished
+- **No email matching on sign-in** — couples must be given direct links; email-based auto-linking not yet implemented
 
 ### Production Roadmap
-- **Database**: Migrate to Firebase Firestore or Cloud SQL (data model is already document-shaped)
-- **Auth**: Firebase Auth with magic link (the UI flow is already mocked)
-- **Admin Panel**: DJ company dashboard to manage couples, pre-configure settings, review submissions
-- **Real-time Sync**: Both partners can fill out the form simultaneously
-- **Gender Configuration**: Admin pre-sets bride/bride, groom/groom, partner terminology before sending invite
+- **Real-time Sync**: Both partners edit simultaneously (Firestore onSnapshot)
+- **Audit Trail**: Per-wedding change log (Firestore subcollection)
+- **SMS Notifications**: Welcome texts, reminders (Twilio + Cloud Functions)
+- **Gender Configuration**: Admin pre-sets partner terminology
 - **Enhanced PDF**: Server-rendered with professional styling
-- **Notifications**: Email/SMS when partner completes sections
-- **Analytics**: Track completion rates, drop-off points, popular song choices
+- **Analytics**: Completion rates, drop-off points, popular song choices
