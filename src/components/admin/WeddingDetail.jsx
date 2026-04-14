@@ -1,16 +1,53 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { doc, getDoc } from 'firebase/firestore';
-import { db, isFirebaseConfigured } from '../../lib/firebase';
+import { doc, getDoc, setDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { sendSignInLinkToEmail } from 'firebase/auth';
+import { auth, db, isFirebaseConfigured } from '../../lib/firebase';
 import { blankFormData, eventOptions, ceremonyTraditions, equipmentOptions } from '../../data/demoData';
 import { calculateAllPhases } from '../../utils/progress';
 import { generateRunSheet } from '../../utils/generatePDF';
+import { useAuth } from '../../context/AuthContext';
+
+const PHASE_LABELS = {
+  1: 'Your Story',
+  2: 'Your People',
+  3: 'Your Soundtrack',
+  4: 'Your Program',
+  5: 'Final Details',
+  6: 'Review & Sign-off',
+};
+
+// Return the lowest-numbered phase below 80% completion, or null if all are complete.
+function findLowestIncompletePhase(phases) {
+  for (let p = 1; p <= 6; p++) {
+    if ((phases[p] || 0) < 80) return p;
+  }
+  return null;
+}
+
+function formatRelativeTime(value) {
+  if (!value) return null;
+  const date = value?.toDate ? value.toDate() : new Date(value);
+  if (isNaN(date.getTime())) return null;
+  const seconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+  if (seconds < 45) return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return date.toLocaleDateString();
+}
 
 export default function WeddingDetail() {
   const { weddingId } = useParams();
+  const { user } = useAuth();
   const [wedding, setWedding] = useState(null);
   const [loading, setLoading] = useState(true);
   const [expandedPhases, setExpandedPhases] = useState({ 1: true });
+  const [reminder, setReminder] = useState({ sending: null, justSent: null, error: null });
+  const [copyFeedback, setCopyFeedback] = useState(null);
 
   useEffect(() => {
     loadWedding();
@@ -71,6 +108,82 @@ export default function WeddingDetail() {
 
   const coupleName = [d.brideName, d.groomName].filter(Boolean).join(' & ') || 'Unnamed Couple';
 
+  const lowestIncompletePhase = findLowestIncompletePhase(progress.phases);
+  const targetPhase = lowestIncompletePhase || 6;
+  const targetPhaseLabel = PHASE_LABELS[targetPhase];
+  const actionUrl = `${window.location.origin}/phase/${targetPhase}`;
+
+  const recipients = [
+    { key: 'bride', firstName: d.brideName, email: wedding.meta?.brideEmail },
+    { key: 'groom', firstName: d.groomName, email: wedding.meta?.groomEmail },
+  ];
+
+  const buildReminderMessage = (firstName) =>
+    `Hi ${firstName || 'there'} — quick nudge from the Special Occasions DJ team. When you have a moment, could you jump back into your wedding planner and finish "${targetPhaseLabel}"? It only takes a few minutes.\n\n${actionUrl}\n\nWe've also emailed you a secure sign-in link. Thanks!`;
+
+  async function sendReminder(recipient) {
+    if (!isFirebaseConfigured || !db || !auth || !recipient.email) return;
+    setReminder({ sending: recipient.key, justSent: null, error: null });
+
+    try {
+      await sendSignInLinkToEmail(auth, recipient.email, {
+        url: actionUrl,
+        handleCodeInApp: true,
+      });
+
+      // Record reminder timestamp on the wedding meta (merge-nested write).
+      await setDoc(
+        doc(db, 'weddings', weddingId),
+        {
+          meta: {
+            lastReminderSent: {
+              [recipient.key]: {
+                to: recipient.email,
+                phase: targetPhase,
+                sentAt: serverTimestamp(),
+              },
+            },
+            updatedAt: serverTimestamp(),
+          },
+        },
+        { merge: true }
+      );
+
+      // Log to the wedding's audit trail.
+      await addDoc(collection(db, 'weddings', weddingId, 'auditLog'), {
+        action: 'reminder_sent',
+        recipient: recipient.key,
+        toEmail: recipient.email,
+        phase: targetPhase,
+        phaseLabel: targetPhaseLabel,
+        editedBy: user?.uid || null,
+        editedByEmail: user?.email || null,
+        editedAt: serverTimestamp(),
+      });
+
+      setReminder({ sending: null, justSent: recipient.key, error: null });
+      await loadWedding();
+    } catch (err) {
+      console.error('Reminder send error:', err);
+      setReminder({
+        sending: null,
+        justSent: null,
+        error: `Failed to send reminder to ${recipient.email}. ${err.message || ''}`.trim(),
+      });
+    }
+  }
+
+  async function copyReminderMessage(recipient) {
+    const message = buildReminderMessage(recipient.firstName);
+    try {
+      await navigator.clipboard.writeText(message);
+      setCopyFeedback(recipient.key);
+      setTimeout(() => setCopyFeedback((curr) => (curr === recipient.key ? null : curr)), 1800);
+    } catch (err) {
+      console.error('Clipboard write failed:', err);
+    }
+  }
+
   return (
     <div className="max-w-3xl mx-auto">
       {/* Header */}
@@ -120,6 +233,79 @@ export default function WeddingDetail() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Reminder nudge panel */}
+      <div className="bg-white rounded-xl border border-stone-200 p-4 mb-6">
+        <div className="flex items-start justify-between mb-3">
+          <div>
+            <h2 className="text-sm font-medium text-stone-700">Send Reminder</h2>
+            <p className="text-xs text-stone-400 mt-0.5">
+              {lowestIncompletePhase
+                ? `Next up for the couple: Phase ${targetPhase} — ${targetPhaseLabel}`
+                : 'All phases are looking good. Reminder will link to the review page.'}
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          {recipients.map((r) => {
+            const lastSent = wedding.meta?.lastReminderSent?.[r.key];
+            const isSending = reminder.sending === r.key;
+            const justSent = reminder.justSent === r.key;
+            const disabled = !r.email || isSending || !isFirebaseConfigured;
+
+            return (
+              <div
+                key={r.key}
+                className="flex flex-wrap items-center justify-between gap-2 bg-stone-50 rounded-lg px-3 py-2"
+              >
+                <div className="min-w-0">
+                  <div className="text-sm text-stone-700">
+                    {r.firstName || (r.key === 'bride' ? 'Bride' : 'Groom')}
+                  </div>
+                  <div className="text-xs text-stone-400 truncate">
+                    {r.email || 'No email on file'}
+                  </div>
+                  {lastSent?.sentAt && (
+                    <div className="text-[11px] text-stone-400 mt-0.5">
+                      Last sent {formatRelativeTime(lastSent.sentAt)}
+                      {lastSent.phase ? ` → Phase ${lastSent.phase}` : ''}
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => copyReminderMessage(r)}
+                    disabled={!r.email}
+                    className="px-3 py-1 rounded-md text-xs font-medium bg-white border border-stone-300 text-stone-700 hover:bg-stone-100 disabled:opacity-50 transition-colors cursor-pointer disabled:cursor-default"
+                  >
+                    {copyFeedback === r.key ? 'Copied!' : 'Copy Message'}
+                  </button>
+                  <button
+                    onClick={() => sendReminder(r)}
+                    disabled={disabled}
+                    className="px-3 py-1 rounded-md text-xs font-medium bg-stone-900 text-white hover:bg-stone-800 disabled:opacity-50 transition-colors cursor-pointer disabled:cursor-default"
+                  >
+                    {isSending ? 'Sending...' : justSent ? 'Sent!' : 'Send Email'}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {reminder.error && (
+          <div className="mt-3 bg-red-50 border border-red-200 rounded-lg p-2 text-xs text-red-700">
+            {reminder.error}
+          </div>
+        )}
+
+        {!recipients.some((r) => r.email) && (
+          <p className="text-xs text-stone-400 mt-3">
+            No email addresses on file for this couple. Add them when creating the wedding.
+          </p>
+        )}
       </div>
 
       {/* Phase sections */}
