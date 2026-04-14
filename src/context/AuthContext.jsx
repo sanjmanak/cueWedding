@@ -8,7 +8,7 @@ import {
   signInWithPopup,
   signOut as firebaseSignOut,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db, isFirebaseConfigured } from '../lib/firebase';
 
 const AuthContext = createContext(null);
@@ -28,6 +28,53 @@ export function AuthProvider({ children }) {
   const [error, setError] = useState(null);
   const magicLinkHandled = useRef(false);
 
+  // Find a wedding where the user's email matches brideEmail or groomEmail in meta
+  const findWeddingByEmail = useCallback(async (email) => {
+    if (!db || !email) return null;
+    const normalizedEmail = email.trim().toLowerCase();
+    const weddingsRef = collection(db, 'weddings');
+
+    // Check brideEmail match
+    const brideQuery = query(weddingsRef, where('meta.brideEmail', '==', normalizedEmail));
+    const brideSnap = await getDocs(brideQuery);
+    if (!brideSnap.empty) return brideSnap.docs[0];
+
+    // Check groomEmail match
+    const groomQuery = query(weddingsRef, where('meta.groomEmail', '==', normalizedEmail));
+    const groomSnap = await getDocs(groomQuery);
+    if (!groomSnap.empty) return groomSnap.docs[0];
+
+    return null;
+  }, []);
+
+  // Link user to an existing wedding (admin-created)
+  const linkUserToWedding = useCallback(async (firebaseUser, weddingDoc) => {
+    if (!db) return;
+    const userRef = doc(db, 'users', firebaseUser.uid);
+    const weddingData = weddingDoc.data();
+    const existingOwners = weddingData.meta?.ownerUids || [];
+
+    // Add user UID to wedding ownerUids if not already there
+    if (!existingOwners.includes(firebaseUser.uid)) {
+      await setDoc(doc(db, 'weddings', weddingDoc.id), {
+        meta: { ownerUids: [...existingOwners, firebaseUser.uid], updatedAt: serverTimestamp() },
+      }, { merge: true });
+    }
+
+    // Create or update user doc pointing to this wedding
+    await setDoc(userRef, {
+      email: firebaseUser.email || '',
+      phone: firebaseUser.phoneNumber || '',
+      role: 'couple',
+      weddingId: weddingDoc.id,
+      displayName: firebaseUser.displayName || '',
+      createdAt: serverTimestamp(),
+      lastLoginAt: serverTimestamp(),
+    }, { merge: true });
+
+    setWeddingId(weddingDoc.id);
+  }, []);
+
   // Load or create user document and their wedding
   const loadUserData = useCallback(async (firebaseUser) => {
     if (!db) return;
@@ -39,13 +86,49 @@ export function AuthProvider({ children }) {
       if (userSnap.exists()) {
         // Existing user — load their wedding and role
         const userData = userSnap.data();
-        setWeddingId(userData.weddingId || null);
         setIsAdmin(userData.role === 'admin');
+
+        if (userData.weddingId) {
+          setWeddingId(userData.weddingId);
+        } else {
+          // Existing user with no wedding — try to find one by email
+          const matchedWedding = await findWeddingByEmail(firebaseUser.email);
+          if (matchedWedding) {
+            await linkUserToWedding(firebaseUser, matchedWedding);
+          }
+        }
 
         // Update last login (fire and forget)
         setDoc(userRef, { lastLoginAt: serverTimestamp() }, { merge: true }).catch(() => {});
       } else {
-        // New user — create user doc + blank wedding
+        // New user — check for ?wedding= param or email match before creating blank wedding
+        const urlParams = new URLSearchParams(window.location.search);
+        const weddingParam = urlParams.get('wedding');
+
+        // Strategy 1: Check ?wedding= URL param (from invite link)
+        if (weddingParam) {
+          const weddingSnap = await getDoc(doc(db, 'weddings', weddingParam));
+          if (weddingSnap.exists()) {
+            const meta = weddingSnap.data().meta || {};
+            const userEmail = (firebaseUser.email || '').toLowerCase();
+            // Verify email matches bride or groom for security
+            if (userEmail && (meta.brideEmail === userEmail || meta.groomEmail === userEmail)) {
+              await linkUserToWedding(firebaseUser, weddingSnap);
+              // Clean URL param
+              window.history.replaceState(null, '', window.location.pathname);
+              return;
+            }
+          }
+        }
+
+        // Strategy 2: Check if any wedding has this email as bride or groom
+        const matchedWedding = await findWeddingByEmail(firebaseUser.email);
+        if (matchedWedding) {
+          await linkUserToWedding(firebaseUser, matchedWedding);
+          return;
+        }
+
+        // Strategy 3: No match found — create a new blank wedding
         const newWeddingId = crypto.randomUUID();
 
         await setDoc(doc(db, 'weddings', newWeddingId), {
@@ -75,7 +158,7 @@ export function AuthProvider({ children }) {
       // Even if Firestore fails, don't block the user.
       // FormDataProvider will fall back to localStorage.
     }
-  }, []);
+  }, [findWeddingByEmail, linkUserToWedding]);
 
   // Complete magic link sign-in if the URL is a sign-in link (runs once before auth listener)
   useEffect(() => {
