@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { doc, getDoc, setDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, addDoc, collection, serverTimestamp, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { sendSignInLinkToEmail } from 'firebase/auth';
 import { auth, db, isFirebaseConfigured } from '../../lib/firebase';
 import { blankFormData, eventOptions, ceremonyTraditions, equipmentOptions } from '../../data/demoData';
@@ -23,6 +23,25 @@ function findLowestIncompletePhase(phases) {
     if ((phases[p] || 0) < 80) return p;
   }
   return null;
+}
+
+function prettifyFieldPath(path) {
+  if (!path) return '';
+  return path
+    .split('.')
+    .map((segment) => segment.replace(/([A-Z])/g, ' $1').trim())
+    .map((segment) => (segment ? segment.charAt(0).toUpperCase() + segment.slice(1).toLowerCase() : segment))
+    .join(' · ');
+}
+
+function formatAuditValue(value) {
+  if (value === null || value === undefined || value === '') return '∅';
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  if (Array.isArray(value)) return value.length ? value.join(', ') : '∅';
+  if (typeof value === 'object') {
+    try { return JSON.stringify(value); } catch { return String(value); }
+  }
+  return String(value);
 }
 
 function formatRelativeTime(value) {
@@ -48,9 +67,38 @@ export default function WeddingDetail() {
   const [expandedPhases, setExpandedPhases] = useState({ 1: true });
   const [reminder, setReminder] = useState({ sending: null, justSent: null, error: null });
   const [copyFeedback, setCopyFeedback] = useState(null);
+  const [auditEntries, setAuditEntries] = useState([]);
+  const [auditLoading, setAuditLoading] = useState(true);
 
   useEffect(() => {
     loadWedding();
+  }, [weddingId]);
+
+  useEffect(() => {
+    if (!isFirebaseConfigured || !db || !weddingId) {
+      setAuditLoading(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const q = query(
+          collection(db, 'weddings', weddingId, 'auditLog'),
+          orderBy('editedAt', 'desc'),
+          limit(50)
+        );
+        const snap = await getDocs(q);
+        if (cancelled) return;
+        setAuditEntries(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      } catch (err) {
+        console.error('Error loading audit log:', err);
+      } finally {
+        if (!cancelled) setAuditLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [weddingId]);
 
   async function loadWedding() {
@@ -474,7 +522,54 @@ export default function WeddingDetail() {
           <DataRow label="Signature" value={d.signatureName} />
           <DataRow label="Signature Date" value={d.signatureDate} />
         </PhaseSection>
+
+        {/* Change History */}
+        <div className="bg-white rounded-xl border border-stone-200 p-4">
+          <h2 className="text-sm font-medium text-stone-700 mb-3">Change History</h2>
+          {auditLoading ? (
+            <div className="text-xs text-stone-400">Loading…</div>
+          ) : auditEntries.length === 0 ? (
+            <div className="text-xs text-stone-400">No edits yet.</div>
+          ) : (
+            <div className="space-y-2">
+              {auditEntries.map((entry) => (
+                <AuditEntryRow key={entry.id} entry={entry} />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
+    </div>
+  );
+}
+
+function AuditEntryRow({ entry }) {
+  const relativeTime = formatRelativeTime(entry.editedAt);
+  const editor = entry.editedByEmail || 'Unknown editor';
+
+  let actionLabel = entry.action || 'Change';
+  let context = null;
+
+  if (entry.action === 'reminder_sent') {
+    actionLabel = 'Reminder sent';
+    const recipient = entry.recipient || 'recipient';
+    const toEmail = entry.toEmail || '—';
+    const phaseLabel = entry.phaseLabel || (entry.phase ? `Phase ${entry.phase}` : 'the next phase');
+    context = `Reminder sent to ${recipient} (${toEmail}) for ${phaseLabel}`;
+  } else if (entry.action === 'field_edited') {
+    actionLabel = 'Field edited';
+    const prettyField = prettifyFieldPath(entry.field);
+    context = `${prettyField}: ${formatAuditValue(entry.oldValue)} → ${formatAuditValue(entry.newValue)}`;
+  }
+
+  return (
+    <div className="bg-stone-50 rounded-lg px-3 py-2 text-xs">
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-medium text-stone-700">{actionLabel}</span>
+        {relativeTime && <span className="text-stone-400 shrink-0">{relativeTime}</span>}
+      </div>
+      {context && <div className="text-stone-600 mt-0.5 break-words">{context}</div>}
+      <div className="text-stone-400 mt-0.5 truncate">by {editor}</div>
     </div>
   );
 }
