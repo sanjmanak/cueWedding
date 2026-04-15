@@ -60,21 +60,45 @@ Audit actions in the wild: `reminder_sent` and `field_edited` (admin edits only
 ## Auth model
 
 - Admins: Firebase email+password **or** Google. Role comes from the user doc's
-  `role` field (see `AuthContext.jsx:89`). Set by hand in Firestore console.
+  `role` field (see `AuthContext.jsx:89`). Set by hand in Firestore console —
+  couples **cannot** self-promote because the rules block role changes.
 - Couples: email-link (`signInWithEmailLink`) only. No password. Sign-in is
   triggered either by the admin pressing "Send Email" on the reminder panel,
   or by the couple entering their email on `/` (Landing).
 - **Linking new sign-ins to weddings** (`AuthContext.jsx:79-161`): checks, in order, `?wedding=<id>` URL param (verified against brideEmail/groomEmail), then email match across all weddings, then creates a blank wedding as a fallback.
 
+## Firestore security rules
+
+Rules live in `firestore.rules`. Model:
+
+- `users/{uid}`: self read/write only; admin can read any. `role` is
+  protected — creates must be non-admin, updates can't change it.
+- `weddings/{id}`: readable by owners, admins, or email-matched couples
+  (the last one enables the "claim" flow in `AuthContext.linkUserToWedding`).
+  Owners can edit `formData` and benign meta but **not** `meta.ownerUids`,
+  `meta.brideEmail`, or `meta.groomEmail` — admin-controlled to prevent
+  takeover. Email-matched couples can only add themselves to `ownerUids`.
+- `weddings/{id}/auditLog`: append-only. Create-only; no updates or deletes.
+  `editedBy` must equal `request.auth.uid`, so no forging entries under
+  someone else's name.
+
+**Promoting a user to admin** (manual, until we build admin UI):
+1. Firebase Console → Firestore → `users/{uid}` → set `role: 'admin'`.
+2. No Cloud Function required; the rules read this field on every request.
+
+**Deploying rule changes**: `npx firebase deploy --only firestore:rules`
+(needs `.firebaserc` pointed at the real project and `firebase login`).
+Test first in the Firebase Console → Firestore → Rules Playground.
+
 ## Known sharp edges
 
-- **Firestore rules are wide open**: `firestore.rules:11` — any authed user can read/write anything. Before launch, this must be locked down with role + ownerUid checks.
-- **`.firebaserc` is placeholder** (`"default": "YOUR_PROJECT_ID_HERE"`) — real project ID lives only in `.env`/CI secrets.
+- **`.firebaserc` is placeholder** (`"default": "YOUR_PROJECT_ID_HERE"`) — real project ID lives only in `.env`/CI secrets. `firebase deploy` will fail until this is set.
+- **Email case sensitivity**: rules compare `resource.data.meta.brideEmail == request.auth.token.email` literal. `CreateWedding.jsx` lowercases stored emails, and Firebase normalizes auth tokens for email-link/Google — but email+password admins with a mixed-case email could slip through the cracks. If claim flow misbehaves, check casing.
 - **No real-time sync**: admin views reload manually after writes (`loadWedding`, `loadAuditLog`). No `onSnapshot` anywhere.
-- **Bundle size**: `jspdf` and `firebase` are imported eagerly via `App.jsx → Phase6Review → utils/generatePDF.js`. Main chunk >500 kB. Candidates for `React.lazy`: all of `/admin/*`, `Phase6Review`, and `generatePDF`.
-- **Timeline block ids** use `Date.now().toString()` (Phase4) — theoretical collision risk under rapid-fire clicks; probably fine.
-- **Couple-side edits are silent** — no audit trail. Only admin edits log to `auditLog`.
+- **Bundle size**: main chunk is ~1.2 MB raw / 372 kB gzip (`npm run build` warns). `jspdf` and `firebase` are imported eagerly via `App.jsx → Phase6Review → utils/generatePDF.js`. Candidates for `React.lazy`: all of `/admin/*`, `Phase6Review`, and `generatePDF`.
+- **Couple-side edits are silent** — no audit trail. Only admin edits log to `auditLog`. Wiring this up is the obvious next slice.
 - **StrictMode is on** (`main.jsx:11`); effects double-fire in dev. Magic-link handler already guards with `magicLinkHandled.current` ref.
+- **Two persistent lint warnings** (`npm run lint`): `FormDataContext.jsx:38` calls `setState` inside an effect body, and `ToastContext.jsx:64` mixes hooks with component exports. Both need real refactors, not quick fixes.
 
 ## Dev commands
 
