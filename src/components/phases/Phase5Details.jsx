@@ -130,7 +130,7 @@ function StepVendors({ formData, setFormData }) {
   );
 }
 
-function StepProduction({ formData, updateField, setFormData }) {
+function StepProduction({ formData, updateField }) {
   const equipment = formData.equipment || [];
 
   const toggleEquipment = (item) => {

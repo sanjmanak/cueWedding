@@ -187,7 +187,7 @@ function StepSummary({ formData, progress, navigate }) {
   );
 }
 
-function StepFinalReview({ formData, updateField, setFormData }) {
+function StepFinalReview({ formData, updateField }) {
   return (
     <div className="space-y-8 animate-fade-in-up">
       <div className="text-center">

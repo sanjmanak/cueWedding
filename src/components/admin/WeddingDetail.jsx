@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { doc, getDoc, setDoc, addDoc, collection, serverTimestamp, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { sendSignInLinkToEmail } from 'firebase/auth';
 import { auth, db, isFirebaseConfigured } from '../../lib/firebase';
-import { blankFormData, eventOptions, ceremonyTraditions, equipmentOptions, bollywoodEras, westernMusicOptions } from '../../data/demoData';
+import { blankFormData, eventOptions, ceremonyTraditions, bollywoodEras, westernMusicOptions } from '../../data/demoData';
 import { calculateAllPhases } from '../../utils/progress';
 import { generateRunSheet } from '../../utils/generatePDF';
 import { useAuth } from '../../context/AuthContext';
