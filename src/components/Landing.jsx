@@ -157,7 +157,14 @@ export default function Landing() {
 
             {isDemo && (
               <p className="text-xs text-stone-400 mt-4">
-                Demo mode — Firebase not configured. <a href="#" onClick={(e) => { e.preventDefault(); navigate('/phase/1'); }} className="underline hover:text-stone-600">Skip to app</a>
+                Demo mode — Firebase not configured.{' '}
+                <button
+                  type="button"
+                  onClick={() => navigate('/phase/1')}
+                  className="underline hover:text-stone-600 cursor-pointer"
+                >
+                  Skip to app
+                </button>
               </p>
             )}
           </div>

@@ -147,7 +147,7 @@ function StepFamily({ formData, updateNestedField }) {
 
 function PersonList({ items, updateField, fieldName, addToast, subtitle, roleOptions }) {
   const addPerson = () => {
-    const newPerson = { id: Date.now().toString(), name: '', role: '', side: 'bride', pronunciation: false };
+    const newPerson = { id: crypto.randomUUID(), name: '', role: '', side: 'bride', pronunciation: false };
     updateField(fieldName, [...(items || []), newPerson]);
     addToast('Person added!', 'success', 1500);
   };

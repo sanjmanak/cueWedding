@@ -102,7 +102,7 @@ function StepTimeline({ formData, setFormData, addToast }) {
   const addBlock = (type) => {
     const blockType = timelineBlockTypes.find((b) => b.id === type);
     const newBlock = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       type,
       label: blockType?.label || 'Block',
       duration: type === 'dinner' ? 45 : type === 'break' ? 15 : type === 'dance-set' ? 30 : 5,
@@ -310,7 +310,7 @@ function StepPerformances({ formData, setFormData, addToast }) {
 
   const addPerformance = (eventId) => {
     const newBlock = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       type: 'performance',
       label: 'New Performance',
       duration: 5,
@@ -411,7 +411,7 @@ function StepSpeeches({ formData, setFormData, addToast }) {
 
   const addSpeech = (eventId) => {
     const newBlock = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       type: 'speech',
       label: 'New Speech',
       duration: 5,

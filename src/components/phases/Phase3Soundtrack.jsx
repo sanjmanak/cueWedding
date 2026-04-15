@@ -88,7 +88,7 @@ function StepMustPlay({ formData, setFormData, addToast }) {
 
   const addSong = (track) => {
     const newSong = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       trackId: track.id,
       name: track.name,
       artist: track.artist,
@@ -133,7 +133,7 @@ function StepDoNotPlay({ formData, setFormData, addToast }) {
 
   const addSong = (track) => {
     const newSong = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       trackId: track.id,
       name: track.name,
       artist: track.artist,
@@ -300,7 +300,7 @@ function StepCustomMixes({ formData, updateField, addToast }) {
   const mixes = formData.customMixes || [];
 
   const addMix = () => {
-    updateField('customMixes', [...mixes, { id: Date.now().toString(), name: '', songs: '', timestamps: '', notes: '' }]);
+    updateField('customMixes', [...mixes, { id: crypto.randomUUID(), name: '', songs: '', timestamps: '', notes: '' }]);
     addToast('Mix request added!', 'success', 1500);
   };
 

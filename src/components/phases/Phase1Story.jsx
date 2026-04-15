@@ -257,7 +257,7 @@ function StepEvents({ formData, updateField }) {
   );
 }
 
-function StepVenues({ formData, updateNestedField, setFormData }) {
+function StepVenues({ formData, updateNestedField }) {
   const events = formData.selectedEvents || [];
   const venues = formData.eventVenues || {};
   const eventDates = formData.eventDates || {};

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { sendSignInLinkToEmail } from 'firebase/auth';
-import { db, auth, isFirebaseConfigured } from '../../lib/firebase';
+import { db, auth } from '../../lib/firebase';
 import { blankFormData } from '../../data/demoData';
 
 export default function CreateWedding() {
