@@ -1,6 +1,8 @@
 import { useNavigate } from 'react-router-dom';
 import Button from './Button';
 import ProgressBar from './ProgressBar';
+import Avatar from './Avatar';
+import { useFormData } from '../../context/FormDataContext';
 
 export default function PhaseWrapper({
   phase,
@@ -14,8 +16,11 @@ export default function PhaseWrapper({
   showCompletion = false,
 }) {
   const navigate = useNavigate();
+  const { formData, profilePhoto } = useFormData();
   const totalSteps = steps.length;
   const isCompletionStep = showCompletion && currentStep === totalSteps - 1;
+  const coupleName = [formData?.brideName, formData?.groomName].filter(Boolean).join(' & ');
+  const showCoupleChip = Boolean(profilePhoto?.downloadUrl || coupleName);
 
   const handleNext = () => {
     if (currentStep < totalSteps - 1) {
@@ -38,6 +43,21 @@ export default function PhaseWrapper({
       {/* Phase header — hidden on completion step */}
       {!isCompletionStep && (
         <div className="mb-8">
+          {showCoupleChip && (
+            <div className="flex items-center gap-2.5 mb-4">
+              <Avatar
+                photoUrl={profilePhoto?.downloadUrl}
+                brideName={formData?.brideName}
+                groomName={formData?.groomName}
+                size={36}
+              />
+              {coupleName && (
+                <span className="text-sm font-medium text-stone-700 truncate">
+                  {coupleName}
+                </span>
+              )}
+            </div>
+          )}
           <p className="text-xs font-semibold tracking-widest text-gold-600 uppercase mb-1">
             Phase {phase} of 6
           </p>

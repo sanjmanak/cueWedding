@@ -5,6 +5,7 @@ import { db, isFirebaseConfigured } from '../../lib/firebase';
 import { calculateAllPhases } from '../../utils/progress';
 import { blankFormData } from '../../data/demoData';
 import { eventOptions } from '../../data/demoData';
+import Avatar from '../common/Avatar';
 
 export default function AdminDashboard() {
   const [weddings, setWeddings] = useState([]);
@@ -40,6 +41,7 @@ export default function AdminDashboard() {
           confirmed: formData.confirmed || false,
           progress,
           meta: data.meta || {},
+          profilePhoto: data.meta?.profile?.photo || null,
         });
       });
 
@@ -165,10 +167,20 @@ function WeddingRow({ wedding }) {
   return (
     <tr className="border-b border-stone-100 hover:bg-stone-50 transition-colors">
       <td className="px-4 py-3">
-        <div className="font-medium text-stone-900">{coupleName}</div>
-        {wedding.meta.brideEmail && (
-          <div className="text-xs text-stone-400 truncate max-w-[200px]">{wedding.meta.brideEmail}</div>
-        )}
+        <div className="flex items-center gap-3">
+          <Avatar
+            photoUrl={wedding.profilePhoto?.downloadUrl}
+            brideName={wedding.brideName}
+            groomName={wedding.groomName}
+            size={36}
+          />
+          <div className="min-w-0">
+            <div className="font-medium text-stone-900 truncate">{coupleName}</div>
+            {wedding.meta.brideEmail && (
+              <div className="text-xs text-stone-400 truncate max-w-[200px]">{wedding.meta.brideEmail}</div>
+            )}
+          </div>
+        </div>
       </td>
       <td className="px-4 py-3 hidden sm:table-cell">
         <span className="text-base" title={wedding.selectedEvents.join(', ')}>

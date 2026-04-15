@@ -7,6 +7,7 @@ import { blankFormData, eventOptions, ceremonyTraditions, bollywoodEras, western
 import { calculateAllPhases } from '../../utils/progress';
 import { generateRunSheet } from '../../utils/generatePDF';
 import { useAuth } from '../../context/AuthContext';
+import { uploadCouplePhoto, deleteCouplePhoto, PhotoUploadError } from '../../lib/photoUpload';
 
 const PHASE_LABELS = {
   1: 'Your Story',
@@ -115,6 +116,8 @@ export default function WeddingDetail() {
   const [draft, setDraft] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoError, setPhotoError] = useState(null);
 
   useEffect(() => {
     loadWedding();
@@ -277,6 +280,60 @@ export default function WeddingDetail() {
     }
   }
 
+  async function writeProfilePhoto(photoDescriptor) {
+    if (!isFirebaseConfigured || !db) return;
+    await setDoc(
+      doc(db, 'weddings', weddingId),
+      {
+        meta: {
+          profile: { photo: photoDescriptor || null },
+          updatedAt: serverTimestamp(),
+          lastEditedBy: user?.uid || null,
+          lastEditedByEmail: user?.email || null,
+        },
+      },
+      { merge: true }
+    );
+  }
+
+  async function handleAdminPhotoUpload(file) {
+    if (!file || !weddingId) return;
+    setPhotoBusy(true);
+    setPhotoError(null);
+    const previousPath = wedding?.meta?.profile?.photo?.storagePath || null;
+    try {
+      const descriptor = await uploadCouplePhoto(weddingId, file, user?.uid);
+      await writeProfilePhoto(descriptor);
+      if (previousPath && previousPath !== descriptor.storagePath) {
+        deleteCouplePhoto(previousPath);
+      }
+      await loadWedding();
+    } catch (err) {
+      console.error('Admin photo upload failed:', err);
+      const message = err instanceof PhotoUploadError ? err.message : 'Upload failed.';
+      setPhotoError(message);
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
+
+  async function handleAdminPhotoRemove() {
+    if (!weddingId) return;
+    const previousPath = wedding?.meta?.profile?.photo?.storagePath || null;
+    setPhotoBusy(true);
+    setPhotoError(null);
+    try {
+      await writeProfilePhoto(null);
+      if (previousPath) deleteCouplePhoto(previousPath);
+      await loadWedding();
+    } catch (err) {
+      console.error('Admin photo remove failed:', err);
+      setPhotoError('Remove failed.');
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
+
   function enterEditMode() {
     setDraft(structuredClone(wedding.formData));
     setEditMode(true);
@@ -358,22 +415,35 @@ export default function WeddingDetail() {
     }
   }
 
+  const profilePhoto = wedding.meta?.profile?.photo || null;
+
   return (
     <div className="max-w-3xl mx-auto">
       {/* Header */}
-      <div className="flex items-start justify-between mb-6">
-        <div>
-          <Link to="/admin" className="text-xs text-stone-400 hover:text-stone-600 mb-1 inline-block">
-            &larr; Dashboard
-          </Link>
-          <h1 className="text-2xl font-semibold text-stone-900">{coupleName}</h1>
-          {d.firstEventDate && (
-            <p className="text-sm text-stone-500 mt-1">
-              {new Date(d.firstEventDate + 'T00:00:00').toLocaleDateString('en-US', {
-                weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
-              })}
-            </p>
-          )}
+      <div className="flex items-start justify-between mb-6 gap-4">
+        <div className="flex items-start gap-4 min-w-0">
+          <CoupleAvatar
+            photo={profilePhoto}
+            brideName={d.brideName}
+            groomName={d.groomName}
+            busy={photoBusy}
+            onFile={handleAdminPhotoUpload}
+            onRemove={handleAdminPhotoRemove}
+            error={photoError}
+          />
+          <div className="min-w-0">
+            <Link to="/admin" className="text-xs text-stone-400 hover:text-stone-600 mb-1 inline-block">
+              &larr; Dashboard
+            </Link>
+            <h1 className="text-2xl font-semibold text-stone-900 truncate">{coupleName}</h1>
+            {d.firstEventDate && (
+              <p className="text-sm text-stone-500 mt-1">
+                {new Date(d.firstEventDate + 'T00:00:00').toLocaleDateString('en-US', {
+                  weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+                })}
+              </p>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {editMode ? (
@@ -834,6 +904,58 @@ function PhaseSection({ title, phase, progress, expanded, onToggle, children }) 
           {children}
         </div>
       )}
+    </div>
+  );
+}
+
+function CoupleAvatar({ photo, brideName, groomName, busy, onFile, onRemove, error }) {
+  const inputId = 'admin-couple-photo-input';
+  const hasPhoto = Boolean(photo?.downloadUrl);
+  const initials = `${(brideName || '').charAt(0)}${(groomName || '').charAt(0)}`.toUpperCase() || '♡';
+
+  return (
+    <div className="flex flex-col items-center shrink-0">
+      <label
+        htmlFor={inputId}
+        className={`relative block w-20 h-20 rounded-full overflow-hidden border-2 border-stone-200 bg-gradient-to-br from-gold-100 to-gold-300 flex items-center justify-center cursor-pointer hover:border-gold-400 transition-colors ${busy ? 'opacity-60' : ''}`}
+        title={hasPhoto ? 'Replace couple photo' : 'Upload couple photo'}
+      >
+        {hasPhoto ? (
+          <img
+            src={photo.downloadUrl}
+            alt={[brideName, groomName].filter(Boolean).join(' & ') || 'Couple'}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <span className="text-gold-800 font-semibold text-lg select-none">{initials}</span>
+        )}
+        {busy && (
+          <div className="absolute inset-0 flex items-center justify-center bg-white/60">
+            <div className="w-5 h-5 border-2 border-stone-300 border-t-stone-700 rounded-full animate-spin" />
+          </div>
+        )}
+      </label>
+      <input
+        id={inputId}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) onFile?.(file);
+          e.target.value = '';
+        }}
+      />
+      {hasPhoto && !busy && (
+        <button
+          type="button"
+          onClick={onRemove}
+          className="mt-1 text-[11px] text-stone-400 hover:text-red-600 cursor-pointer"
+        >
+          Remove
+        </button>
+      )}
+      {error && <span className="mt-1 text-[11px] text-red-600 max-w-[120px] text-center">{error}</span>}
     </div>
   );
 }
