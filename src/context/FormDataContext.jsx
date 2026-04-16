@@ -18,6 +18,10 @@ function FirestoreFormDataProvider({ weddingId, children }) {
   const [formData, setFormDataLocal] = useState(blankFormData);
   const [profilePhoto, setProfilePhotoLocal] = useState(null);
   const [loaded, setLoaded] = useState(false);
+  // saveState reflects the lifecycle of the debounced Firestore write.
+  // It starts at { status: 'saved', lastSavedAt: null } — consumers treat
+  // lastSavedAt === null as "nothing to report yet" and hide the indicator.
+  const [saveState, setSaveState] = useState({ status: 'saved', lastSavedAt: null });
   const pendingRef = useRef(null);
   const timeoutRef = useRef(null);
   const weddingRef = useRef(weddingId);
@@ -43,9 +47,12 @@ function FirestoreFormDataProvider({ weddingId, children }) {
     }
     pendingRef.current = null;
     dirtyKeysRef.current = new Set();
-    updateDoc(doc(db, 'weddings', id), updates).catch((err) =>
-      console.error('Firestore write error:', err)
-    );
+    updateDoc(doc(db, 'weddings', id), updates)
+      .then(() => setSaveState({ status: 'saved', lastSavedAt: new Date() }))
+      .catch((err) => {
+        console.error('Firestore write error:', err);
+        setSaveState((prev) => ({ status: 'error', lastSavedAt: prev.lastSavedAt }));
+      });
   }, []);
 
   // Load data from Firestore once on mount (no real-time listener to avoid race conditions)
@@ -88,6 +95,9 @@ function FirestoreFormDataProvider({ weddingId, children }) {
   const syncToFirestore = useCallback(
     (data) => {
       pendingRef.current = data;
+      // Flip to 'saving' as soon as an edit is queued — keeps the indicator
+      // honest across the whole debounce window, not just the network call.
+      setSaveState((prev) => ({ status: 'saving', lastSavedAt: prev.lastSavedAt }));
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       timeoutRef.current = setTimeout(flushToFirestore, DEBOUNCE_MS);
     },
@@ -175,7 +185,7 @@ function FirestoreFormDataProvider({ weddingId, children }) {
   if (!loaded) {
     return (
       <FormDataContext.Provider
-        value={{ formData: blankFormData, setFormData: () => {}, updateField: () => {}, updateNestedField: () => {}, resetToDemo: () => {}, resetToBlank: () => {}, clearAll: () => {}, profilePhoto: null, setProfilePhoto: () => {}, loading: true }}
+        value={{ formData: blankFormData, setFormData: () => {}, updateField: () => {}, updateNestedField: () => {}, resetToDemo: () => {}, resetToBlank: () => {}, clearAll: () => {}, profilePhoto: null, setProfilePhoto: () => {}, loading: true, saveState: null }}
       >
         {children}
       </FormDataContext.Provider>
@@ -184,7 +194,7 @@ function FirestoreFormDataProvider({ weddingId, children }) {
 
   return (
     <FormDataContext.Provider
-      value={{ formData, setFormData, updateField, updateNestedField, resetToDemo, resetToBlank, clearAll, profilePhoto, setProfilePhoto, loading: false }}
+      value={{ formData, setFormData, updateField, updateNestedField, resetToDemo, resetToBlank, clearAll, profilePhoto, setProfilePhoto, loading: false, saveState }}
     >
       {children}
     </FormDataContext.Provider>
@@ -229,7 +239,7 @@ function LocalFormDataProvider({ children }) {
 
   return (
     <FormDataContext.Provider
-      value={{ formData, setFormData, updateField, updateNestedField, resetToDemo, resetToBlank, clearAll, profilePhoto, setProfilePhoto, loading: false }}
+      value={{ formData, setFormData, updateField, updateNestedField, resetToDemo, resetToBlank, clearAll, profilePhoto, setProfilePhoto, loading: false, saveState: null }}
     >
       {children}
     </FormDataContext.Provider>

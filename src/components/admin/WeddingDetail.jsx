@@ -5,6 +5,7 @@ import { sendSignInLinkToEmail } from 'firebase/auth';
 import { auth, db, isFirebaseConfigured } from '../../lib/firebase';
 import { blankFormData, eventOptions, ceremonyTraditions, bollywoodEras, westernMusicOptions } from '../../data/demoData';
 import { calculateAllPhases } from '../../utils/progress';
+import { formatRelativeTime } from '../../utils/time';
 import { generateRunSheet } from '../../utils/generatePDF';
 import { useAuth } from '../../context/AuthContext';
 import { compressCouplePhoto, PhotoUploadError } from '../../lib/photoUpload';
@@ -85,21 +86,6 @@ function formatAuditValue(value) {
     try { return JSON.stringify(value); } catch { return String(value); }
   }
   return String(value);
-}
-
-function formatRelativeTime(value) {
-  if (!value) return null;
-  const date = value?.toDate ? value.toDate() : new Date(value);
-  if (isNaN(date.getTime())) return null;
-  const seconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
-  if (seconds < 45) return 'just now';
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d ago`;
-  return date.toLocaleDateString();
 }
 
 export default function WeddingDetail() {
