@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFormData } from '../../context/FormDataContext';
+import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import PhaseWrapper from '../common/PhaseWrapper';
 import Input from '../common/Input';
 import Card from '../common/Card';
 import Button from '../common/Button';
+import PhotoUpload from '../common/PhotoUpload';
+import { deleteCouplePhoto } from '../../lib/photoUpload';
 import {
   eventOptions, howMetOptions, datingAppOptions,
   guestCountOptions, vibeWords, bollywoodEras, westernMusicOptions,
@@ -22,7 +25,8 @@ const steps = [
 ];
 
 export default function Phase1Story() {
-  const { formData, updateField, updateNestedField, setFormData } = useFormData();
+  const { formData, updateField, updateNestedField, setFormData, profilePhoto, setProfilePhoto } = useFormData();
+  const { weddingId } = useAuth();
   const { addToast } = useToast();
   const [step, setStep] = useState(0);
 
@@ -30,6 +34,25 @@ export default function Phase1Story() {
     setStep(newStep);
     if (newStep < steps.length - 1) {
       addToast('Saved!', 'success', 1500);
+    }
+  };
+
+  const handlePhotoUploaded = (photo) => {
+    const previousPath = profilePhoto?.storagePath;
+    setProfilePhoto(photo);
+    addToast('Photo added!', 'success', 1500);
+    // Replace: delete the old object in the background so Storage doesn't
+    // accumulate orphans. Best-effort — errors are swallowed.
+    if (previousPath && previousPath !== photo.storagePath) {
+      deleteCouplePhoto(previousPath);
+    }
+  };
+
+  const handlePhotoRemoved = () => {
+    const previousPath = profilePhoto?.storagePath;
+    setProfilePhoto(null);
+    if (previousPath) {
+      deleteCouplePhoto(previousPath);
     }
   };
 
@@ -44,23 +67,50 @@ export default function Phase1Story() {
       prevPath="/"
       showCompletion={step === steps.length - 1}
     >
-      {step === 0 && <StepNames formData={formData} updateField={updateField} />}
+      {step === 0 && (
+        <StepNames
+          formData={formData}
+          updateField={updateField}
+          weddingId={weddingId}
+          profilePhoto={profilePhoto}
+          onPhotoUploaded={handlePhotoUploaded}
+          onPhotoRemoved={handlePhotoRemoved}
+        />
+      )}
       {step === 1 && <StepHowMet formData={formData} updateField={updateField} setFormData={setFormData} />}
       {step === 2 && <StepEvents formData={formData} updateField={updateField} />}
       {step === 3 && <StepVenues formData={formData} updateNestedField={updateNestedField} setFormData={setFormData} />}
       {step === 4 && <StepGuestCounts formData={formData} updateNestedField={updateNestedField} />}
       {step === 5 && <StepVibe formData={formData} updateField={updateField} />}
-      {step === 6 && <Phase1Summary formData={formData} />}
+      {step === 6 && <Phase1Summary formData={formData} profilePhoto={profilePhoto} />}
     </PhaseWrapper>
   );
 }
 
-function StepNames({ formData, updateField }) {
+function StepNames({ formData, updateField, weddingId, profilePhoto, onPhotoUploaded, onPhotoRemoved }) {
   return (
     <div className="space-y-8 animate-fade-in-up">
       <div className="text-center mb-2">
         <p className="text-stone-500">Let's start with the two most important people.</p>
       </div>
+
+      <Card className="p-6 space-y-4">
+        <div className="flex items-center gap-3 mb-2">
+          <span className="text-2xl">📸</span>
+          <div>
+            <h3 className="font-heading text-lg font-semibold text-stone-800">A photo of you two</h3>
+            <p className="text-xs text-stone-400">Optional — makes this space feel like yours.</p>
+          </div>
+        </div>
+        <PhotoUpload
+          weddingId={weddingId}
+          photo={profilePhoto}
+          brideName={formData.brideName}
+          groomName={formData.groomName}
+          onUploaded={onPhotoUploaded}
+          onRemove={onPhotoRemoved}
+        />
+      </Card>
 
       <Card className="p-6 space-y-4">
         <div className="flex items-center gap-3 mb-2">
@@ -537,7 +587,7 @@ function StepVibe({ formData, updateField }) {
   );
 }
 
-function Phase1Summary({ formData }) {
+function Phase1Summary({ formData, profilePhoto }) {
   const navigate = useNavigate();
   const events = formData.selectedEvents || [];
   const venues = formData.eventVenues || {};
@@ -580,6 +630,13 @@ function Phase1Summary({ formData }) {
       {/* The Couple */}
       <Card className="p-6 bg-gradient-to-br from-gold-50 to-white">
         <div className="text-center">
+          {profilePhoto?.downloadUrl && (
+            <img
+              src={profilePhoto.downloadUrl}
+              alt={[formData.brideName, formData.groomName].filter(Boolean).join(' & ') || 'Couple photo'}
+              className="w-24 h-24 rounded-full object-cover mx-auto mb-4 border-2 border-gold-200 shadow-sm"
+            />
+          )}
           <p className="text-xs tracking-widest uppercase text-gold-600 font-semibold mb-3">The Couple</p>
           <h3 className="font-heading text-2xl font-semibold text-stone-900">
             {formData.brideName || 'Bride'} {formData.brideLastName && formData.brideLastName}

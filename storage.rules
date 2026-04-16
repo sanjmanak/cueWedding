@@ -1,0 +1,57 @@
+rules_version = '2';
+
+// Firebase Storage rules for Cue Wedding.
+//
+// Policy (MVP, permissive by design):
+//   * Any signed-in user may read couple profile photos. These are not
+//     considered sensitive (they're the kind of thing a couple would put on a
+//     save-the-date), and download URLs are effectively opaque anyway.
+//   * Writes/deletes to the profile folder are restricted to wedding owners
+//     or admins (role = 'admin' in users/{uid}).
+//   * Uploads must be images under 10 MB.
+//
+// NOTE: deploying this file requires adding "storage" to firebase.json. Until
+// deployed, the Firebase console's default rules apply.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
+        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isWeddingOwner(weddingId) {
+      return isSignedIn()
+        && firestore.exists(/databases/(default)/documents/weddings/$(weddingId))
+        && request.auth.uid in firestore.get(/databases/(default)/documents/weddings/$(weddingId)).data.meta.ownerUids;
+    }
+
+    function isValidImageUpload() {
+      return request.resource != null
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    // Couple profile photos.
+    match /weddings/{weddingId}/profile/{fileName} {
+      allow read: if isSignedIn();
+
+      allow write: if (isAdmin() || isWeddingOwner(weddingId))
+        && (request.resource == null || isValidImageUpload());
+
+      allow delete: if isAdmin() || isWeddingOwner(weddingId);
+    }
+
+    // Default deny — explicit. Any object outside the profile folder is locked
+    // down until we add a matching rule.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

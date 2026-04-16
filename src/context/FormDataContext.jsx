@@ -12,6 +12,7 @@ const DEBOUNCE_MS = 1500;
 // Firestore-backed provider: load once, then debounced writes
 function FirestoreFormDataProvider({ weddingId, children }) {
   const [formData, setFormDataLocal] = useState(blankFormData);
+  const [profilePhoto, setProfilePhotoLocal] = useState(null);
   const [loaded, setLoaded] = useState(false);
   const pendingRef = useRef(null);
   const timeoutRef = useRef(null);
@@ -46,8 +47,10 @@ function FirestoreFormDataProvider({ weddingId, children }) {
       .then((snap) => {
         if (cancelled) return;
         if (snap.exists()) {
-          const formFields = snap.data().formData || {};
+          const data = snap.data();
+          const formFields = data.formData || {};
           setFormDataLocal({ ...blankFormData, ...formFields });
+          setProfilePhotoLocal(data.meta?.profile?.photo || null);
         }
         setLoaded(true);
       })
@@ -124,11 +127,37 @@ function FirestoreFormDataProvider({ weddingId, children }) {
     setFormData({ ...blankFormData });
   }, [setFormData]);
 
+  // Profile photo lives on meta.profile.photo. Write goes straight to Firestore
+  // (not debounced through formData) so the avatar shows up immediately after
+  // upload. Pass null to clear.
+  const setProfilePhoto = useCallback(
+    async (photo) => {
+      setProfilePhotoLocal(photo);
+      const id = weddingRef.current;
+      if (!id || !db) return;
+      try {
+        await setDoc(
+          doc(db, 'weddings', id),
+          {
+            meta: {
+              profile: { photo: photo || null },
+              updatedAt: serverTimestamp(),
+            },
+          },
+          { merge: true }
+        );
+      } catch (err) {
+        console.error('Profile photo write error:', err);
+      }
+    },
+    []
+  );
+
   // Show loading state until data is loaded
   if (!loaded) {
     return (
       <FormDataContext.Provider
-        value={{ formData: blankFormData, setFormData: () => {}, updateField: () => {}, updateNestedField: () => {}, resetToDemo: () => {}, resetToBlank: () => {}, clearAll: () => {}, loading: true }}
+        value={{ formData: blankFormData, setFormData: () => {}, updateField: () => {}, updateNestedField: () => {}, resetToDemo: () => {}, resetToBlank: () => {}, clearAll: () => {}, profilePhoto: null, setProfilePhoto: () => {}, loading: true }}
       >
         {children}
       </FormDataContext.Provider>
@@ -137,7 +166,7 @@ function FirestoreFormDataProvider({ weddingId, children }) {
 
   return (
     <FormDataContext.Provider
-      value={{ formData, setFormData, updateField, updateNestedField, resetToDemo, resetToBlank, clearAll, loading: false }}
+      value={{ formData, setFormData, updateField, updateNestedField, resetToDemo, resetToBlank, clearAll, profilePhoto, setProfilePhoto, loading: false }}
     >
       {children}
     </FormDataContext.Provider>
@@ -147,6 +176,8 @@ function FirestoreFormDataProvider({ weddingId, children }) {
 // localStorage-backed provider: original behavior for demo mode
 function LocalFormDataProvider({ children }) {
   const [formData, setFormData, removeFormData] = useLocalStorage('cue-wedding-data', defaultDemoData);
+  // Demo mode has no Firebase Storage, so photo state is in-memory only.
+  const [profilePhoto, setProfilePhoto] = useState(null);
 
   const updateField = useCallback(
     (field, value) => {
@@ -175,11 +206,12 @@ function LocalFormDataProvider({ children }) {
 
   const clearAll = useCallback(() => {
     removeFormData();
+    setProfilePhoto(null);
   }, [removeFormData]);
 
   return (
     <FormDataContext.Provider
-      value={{ formData, setFormData, updateField, updateNestedField, resetToDemo, resetToBlank, clearAll, loading: false }}
+      value={{ formData, setFormData, updateField, updateNestedField, resetToDemo, resetToBlank, clearAll, profilePhoto, setProfilePhoto, loading: false }}
     >
       {children}
     </FormDataContext.Provider>
