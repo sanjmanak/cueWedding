@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { doc, getDoc, setDoc, addDoc, collection, serverTimestamp, query, orderBy, limit, getDocs } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, addDoc, collection, serverTimestamp, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { sendSignInLinkToEmail } from 'firebase/auth';
 import { auth, db, isFirebaseConfigured } from '../../lib/firebase';
 import { blankFormData, eventOptions, ceremonyTraditions, bollywoodEras, westernMusicOptions } from '../../data/demoData';
@@ -227,23 +227,15 @@ export default function WeddingDetail() {
         handleCodeInApp: true,
       });
 
-      // Record reminder timestamp on the wedding meta (merge-nested write).
-      await setDoc(
-        doc(db, 'weddings', weddingId),
-        {
-          meta: {
-            lastReminderSent: {
-              [recipient.key]: {
-                to: recipient.email,
-                phase: targetPhase,
-                sentAt: serverTimestamp(),
-              },
-            },
-            updatedAt: serverTimestamp(),
-          },
+      // Record reminder timestamp on the wedding meta.
+      await updateDoc(doc(db, 'weddings', weddingId), {
+        [`meta.lastReminderSent.${recipient.key}`]: {
+          to: recipient.email,
+          phase: targetPhase,
+          sentAt: serverTimestamp(),
         },
-        { merge: true }
-      );
+        'meta.updatedAt': serverTimestamp(),
+      });
 
       // Log to the wedding's audit trail.
       await addDoc(collection(db, 'weddings', weddingId, 'auditLog'), {
@@ -282,18 +274,12 @@ export default function WeddingDetail() {
 
   async function writeProfilePhoto(photoDescriptor) {
     if (!isFirebaseConfigured || !db) return;
-    await setDoc(
-      doc(db, 'weddings', weddingId),
-      {
-        meta: {
-          profile: { photo: photoDescriptor || null },
-          updatedAt: serverTimestamp(),
-          lastEditedBy: user?.uid || null,
-          lastEditedByEmail: user?.email || null,
-        },
-      },
-      { merge: true }
-    );
+    await updateDoc(doc(db, 'weddings', weddingId), {
+      'meta.profile.photo': photoDescriptor || null,
+      'meta.updatedAt': serverTimestamp(),
+      'meta.lastEditedBy': user?.uid || null,
+      'meta.lastEditedByEmail': user?.email || null,
+    });
   }
 
   async function handleAdminPhotoUpload(file) {
@@ -368,20 +354,14 @@ export default function WeddingDetail() {
         return;
       }
 
-      // One write with the full merged formData. Merge protects sibling arrays
-      // and meta fields we didn't touch.
-      await setDoc(
-        doc(db, 'weddings', weddingId),
-        {
-          formData: draft,
-          meta: {
-            updatedAt: serverTimestamp(),
-            lastEditedBy: user?.uid || null,
-            lastEditedByEmail: user?.email || null,
-          },
-        },
-        { merge: true }
-      );
+      // One write with the full formData + dot-notation meta updates so
+      // we never clobber ownerUids, brideEmail, or groomEmail.
+      await updateDoc(doc(db, 'weddings', weddingId), {
+        formData: draft,
+        'meta.updatedAt': serverTimestamp(),
+        'meta.lastEditedBy': user?.uid || null,
+        'meta.lastEditedByEmail': user?.email || null,
+      });
 
       // One audit log entry per changed field.
       const sanitize = (v) => (v === undefined ? null : v);

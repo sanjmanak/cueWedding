@@ -1,5 +1,9 @@
 import { createContext, useContext, useCallback, useState, useEffect, useRef } from 'react';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+// NOTE: We intentionally use updateDoc (not setDoc+merge) for all wedding
+// writes so that dot-notation paths like 'meta.updatedAt' only touch the
+// targeted fields. setDoc({merge:true}) with nested objects can replace
+// the entire parent map, which triggers Firestore rule violations.
 import { db, isFirebaseConfigured } from '../lib/firebase';
 import { useAuth } from './AuthContext';
 import { useLocalStorage } from '../hooks/useLocalStorage';
@@ -19,17 +23,19 @@ function FirestoreFormDataProvider({ weddingId, children }) {
   const weddingRef = useRef(weddingId);
   useEffect(() => { weddingRef.current = weddingId; }, [weddingId]);
 
-  // Flush pending data to Firestore
+  // Flush pending data to Firestore.
+  // Uses updateDoc with dot-notation so only formData and meta.updatedAt
+  // are touched — sibling meta fields (ownerUids, brideEmail, etc.) are
+  // never overwritten, which keeps Firestore rules happy.
   const flushToFirestore = useCallback(() => {
     const data = pendingRef.current;
     const id = weddingRef.current;
     if (data && id && db) {
       pendingRef.current = null;
-      setDoc(
-        doc(db, 'weddings', id),
-        { formData: data, meta: { updatedAt: serverTimestamp() } },
-        { merge: true }
-      ).catch((err) => console.error('Firestore write error:', err));
+      updateDoc(doc(db, 'weddings', id), {
+        formData: data,
+        'meta.updatedAt': serverTimestamp(),
+      }).catch((err) => console.error('Firestore write error:', err));
     }
   }, []);
 
@@ -136,16 +142,10 @@ function FirestoreFormDataProvider({ weddingId, children }) {
       const id = weddingRef.current;
       if (!id || !db) return;
       try {
-        await setDoc(
-          doc(db, 'weddings', id),
-          {
-            meta: {
-              profile: { photo: photo || null },
-              updatedAt: serverTimestamp(),
-            },
-          },
-          { merge: true }
-        );
+        await updateDoc(doc(db, 'weddings', id), {
+          'meta.profile.photo': photo || null,
+          'meta.updatedAt': serverTimestamp(),
+        });
       } catch (err) {
         console.error('Profile photo write error:', err);
       }
