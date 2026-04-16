@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf';
-import { eventOptions } from '../data/demoData';
+import { eventOptions, ceremonyTraditions } from '../data/demoData';
 
 const GOLD = [217, 119, 6];
 const DARK = [41, 37, 36];
@@ -8,6 +8,51 @@ const LIGHT = [245, 245, 244];
 
 // Strip emojis and other non-printable characters that jsPDF can't render
 const clean = (str) => str ? str.replace(/[^\p{L}\p{N}\p{P}\p{Z}\p{Sc}]/gu, '').trim() : '';
+
+const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// Wrap any VIP name in `text` with its pronunciation: "Raj Patel" -> "Raj Patel (RAH-j)".
+// Skips names already followed by an open paren to avoid double-wrapping.
+const inlinePronunciations = (text, data) => {
+  if (!text) return text;
+  const prons = data?.pronunciations || {};
+  let out = String(text);
+  // Longest names first so "Raj Patel" matches before "Raj".
+  const entries = Object.entries(prons)
+    .filter(([name, pron]) => name && pron)
+    .sort((a, b) => b[0].length - a[0].length);
+  entries.forEach(([name, pron]) => {
+    const re = new RegExp(`${escapeRegex(name)}(?!\\s*\\()`, 'g');
+    out = out.replace(re, `${name} (${pron})`);
+  });
+  return out;
+};
+
+// Resolve a song for a timeline block. Performance blocks store songName/performerName
+// directly; tradition blocks are matched against specialMoments by label keywords.
+const resolveBlockSong = (block, data) => {
+  if (!block) return null;
+  if (block.type === 'performance' && (block.songName || block.performerName)) {
+    return { name: block.songName || '', artist: block.performerName || '' };
+  }
+  if (block.type === 'tradition') {
+    const label = (block.label || '').toLowerCase();
+    const sm = data?.specialMoments || {};
+    const matchers = [
+      ['firstDance', ['first dance']],
+      ['fatherDaughter', ['father-daughter', 'father daughter']],
+      ['motherSon', ['mother-son', 'mother son']],
+      ['coupleEntrance', ['grand entrance', 'couple entrance', 'entrance']],
+      ['lastSong', ['last song', 'last dance']],
+    ];
+    for (const [key, keys] of matchers) {
+      if (keys.some((k) => label.includes(k)) && sm[key]?.type === 'song') {
+        return { name: sm[key].name || '', artist: sm[key].artist || '' };
+      }
+    }
+  }
+  return null;
+};
 
 function loadImage(url) {
   return new Promise((resolve) => {
@@ -132,6 +177,108 @@ export async function generateRunSheet(data) {
   doc.setFontSize(9);
   doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageW / 2, pageH - 20, { align: 'center' });
 
+  // ===== DJ CUE CARD =====
+  // Single-page condensed flowchart grouped by event day. Tape to the booth.
+  doc.addPage();
+  y = margin;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18);
+  doc.setTextColor(...DARK);
+  doc.text('DJ Cue Card', margin, y);
+  y += 5;
+  doc.setDrawColor(...GOLD);
+  doc.setLineWidth(0.5);
+  doc.line(margin, y, pageW - margin, y);
+  y += 4;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(...GRAY);
+  doc.text(
+    `${clean(data.brideName || '')} & ${clean(data.groomName || '')}  -  ${clean(dateStr)}`,
+    margin,
+    y,
+  );
+  y += 5;
+
+  const selectedEventIds = data.selectedEvents || [];
+  if (selectedEventIds.length === 0) {
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(9);
+    doc.setTextColor(...GRAY);
+    doc.text('— no events selected —', margin, y);
+    y += 5;
+  } else {
+    // Group events by date; undated events fall under "Date TBD".
+    const eventsByDate = {};
+    selectedEventIds.forEach((eventId) => {
+      const d = data.eventDates?.[eventId] || '';
+      if (!eventsByDate[d]) eventsByDate[d] = [];
+      eventsByDate[d].push(eventId);
+    });
+    const sortedDates = Object.keys(eventsByDate).sort((a, b) => {
+      if (!a) return 1;
+      if (!b) return -1;
+      return a.localeCompare(b);
+    });
+
+    const CUE_LINE = 3.6;
+    const CUE_FONT = 8;
+
+    sortedDates.forEach((date) => {
+      const dayLabel = date
+        ? new Date(date + 'T00:00:00').toLocaleDateString('en-US', {
+            weekday: 'short', month: 'short', day: 'numeric',
+          })
+        : 'Date TBD';
+      checkPage(8);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.setTextColor(...GOLD);
+      doc.text(clean(dayLabel), margin, y);
+      y += CUE_LINE + 1.5;
+
+      eventsByDate[date].forEach((eventId) => {
+        const event = eventOptions.find((e) => e.id === eventId);
+        const blocks = data.timelines?.[eventId] || [];
+        checkPage(6);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(CUE_FONT + 1);
+        doc.setTextColor(...DARK);
+        doc.text(clean(event?.label || eventId), margin + 2, y);
+        y += CUE_LINE + 0.5;
+
+        if (blocks.length === 0) {
+          doc.setFont('helvetica', 'italic');
+          doc.setFontSize(CUE_FONT);
+          doc.setTextColor(...GRAY);
+          doc.text('—', margin + 6, y);
+          y += CUE_LINE;
+        } else {
+          let cumMin = 0;
+          blocks.forEach((block) => {
+            const parts = [`+${cumMin}min`, block.label || '—'];
+            const song = resolveBlockSong(block, data);
+            if (song && (song.name || song.artist)) {
+              parts.push(`${song.name || 'TBD'}${song.artist ? ` (${song.artist})` : ''}`);
+            } else if (block.type === 'speech' && block.speaker) {
+              parts.push(block.speaker);
+            }
+            const line = inlinePronunciations(parts.join('  ·  '), data);
+            checkPage(5);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(CUE_FONT);
+            doc.setTextColor(...DARK);
+            const lines = doc.splitTextToSize(clean(line), pageW - margin * 2 - 6);
+            doc.text(lines, margin + 6, y);
+            y += CUE_LINE * lines.length;
+            cumMin += block.duration || 0;
+          });
+        }
+        y += 1;
+      });
+    });
+  }
+
   // ===== SECTION 1: COUPLE PROFILE =====
   doc.addPage();
   y = margin;
@@ -243,6 +390,45 @@ export async function generateRunSheet(data) {
     }
   });
 
+  // ===== CEREMONY =====
+  // Lives between couple profile and the timeline; previously missing from PDF entirely.
+  doc.addPage();
+  y = margin;
+  heading('Ceremony');
+
+  const selectedTraditionIds = data.ceremonyTraditions || [];
+  const ceremonySongs = data.ceremonySongs || {};
+  if (selectedTraditionIds.length === 0) {
+    bodyText('—');
+  } else {
+    const canonicalOrder = ceremonyTraditions.map((t) => t.id);
+    const orderedTraditions = [...selectedTraditionIds].sort((a, b) => {
+      const ai = canonicalOrder.indexOf(a);
+      const bi = canonicalOrder.indexOf(b);
+      if (ai === -1 && bi === -1) return 0;
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    });
+    orderedTraditions.forEach((tradId) => {
+      const tradition = ceremonyTraditions.find((t) => t.id === tradId);
+      const label = tradition?.label || tradId;
+      const song = ceremonySongs[tradId];
+      checkPage(8);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.setTextColor(...DARK);
+      doc.text(clean(label), margin + 4, y);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...GRAY);
+      const songText = song?.name
+        ? `${song.name}${song.artist ? ` — ${song.artist}` : ''}`
+        : '— song TBD —';
+      doc.text(clean(inlinePronunciations(songText, data)), margin + 45, y);
+      y += 6;
+    });
+  }
+
   // ===== SECTION 5: PROGRAM TIMELINE =====
   doc.addPage();
   y = margin;
@@ -260,11 +446,13 @@ export async function generateRunSheet(data) {
       bodyText(`+${cumMin}min  ${block.label} (${block.duration}min)`, 4);
       // Show performance details inline
       if (block.type === 'performance' && (block.performerName || block.songName)) {
-        bodyText(`  Performer: ${block.performerName || '—'}  |  Song: ${block.songName || '—'}`, 12);
+        const performer = inlinePronunciations(block.performerName || '—', data);
+        bodyText(`  Performer: ${performer}  |  Song: ${block.songName || '—'}`, 12);
       }
       // Show speech details inline
       if (block.type === 'speech' && block.speaker) {
-        bodyText(`  Speaker: ${block.speaker}${block.relationship ? ` (${block.relationship})` : ''}`, 12);
+        const speaker = inlinePronunciations(block.speaker, data);
+        bodyText(`  Speaker: ${speaker}${block.relationship ? ` (${block.relationship})` : ''}`, 12);
       }
       cumMin += block.duration || 0;
     });
@@ -347,6 +535,7 @@ export async function generateRunSheet(data) {
   }
 
   // Save
-  const fileName = `${data.brideName || 'Wedding'}_${data.groomName || ''}_RunSheet.pdf`;
+  const datePart = data.firstEventDate ? `_${data.firstEventDate}` : '';
+  const fileName = `${data.brideName || 'Wedding'}_${data.groomName || ''}${datePart}_RunSheet.pdf`;
   doc.save(fileName);
 }
