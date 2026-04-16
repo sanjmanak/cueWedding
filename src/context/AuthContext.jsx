@@ -8,7 +8,7 @@ import {
   signInWithPopup,
   signOut as firebaseSignOut,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db, isFirebaseConfigured } from '../lib/firebase';
 
 const AuthContext = createContext(null);
@@ -54,11 +54,14 @@ export function AuthProvider({ children }) {
     const weddingData = weddingDoc.data();
     const existingOwners = weddingData.meta?.ownerUids || [];
 
-    // Add user UID to wedding ownerUids if not already there
+    // Add user UID to wedding ownerUids if not already there.
+    // Use updateDoc with dot notation so we only touch ownerUids and
+    // updatedAt — never overwrite sibling meta fields like brideEmail.
     if (!existingOwners.includes(firebaseUser.uid)) {
-      await setDoc(doc(db, 'weddings', weddingDoc.id), {
-        meta: { ownerUids: [...existingOwners, firebaseUser.uid], updatedAt: serverTimestamp() },
-      }, { merge: true });
+      await updateDoc(doc(db, 'weddings', weddingDoc.id), {
+        'meta.ownerUids': [...existingOwners, firebaseUser.uid],
+        'meta.updatedAt': serverTimestamp(),
+      });
     }
 
     // Create or update user doc pointing to this wedding
@@ -128,13 +131,19 @@ export function AuthProvider({ children }) {
           return;
         }
 
-        // Strategy 3: No match found — create a new blank wedding
+        // Strategy 3: No match found — create a new blank wedding.
+        // Store the sign-up email as brideEmail so the Firestore rules
+        // have a value to compare on future writes and so admins can see
+        // who owns this wedding. The couple can reassign later.
         const newWeddingId = crypto.randomUUID();
+        const signUpEmail = (firebaseUser.email || '').trim().toLowerCase();
 
         await setDoc(doc(db, 'weddings', newWeddingId), {
           formData: {},
           meta: {
             ownerUids: [firebaseUser.uid],
+            brideEmail: signUpEmail,
+            groomEmail: '',
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
             status: 'active',
