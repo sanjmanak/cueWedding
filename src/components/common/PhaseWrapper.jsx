@@ -20,7 +20,7 @@ export default function PhaseWrapper({
   const totalSteps = steps.length;
   const isCompletionStep = showCompletion && currentStep === totalSteps - 1;
   const coupleName = [formData?.brideName, formData?.groomName].filter(Boolean).join(' & ');
-  const showCoupleChip = Boolean(profilePhoto?.downloadUrl || coupleName);
+  const showCoupleChip = Boolean(profilePhoto?.dataUrl || coupleName);
 
   const handleNext = () => {
     if (currentStep < totalSteps - 1) {
@@ -46,7 +46,7 @@ export default function PhaseWrapper({
           {showCoupleChip && (
             <div className="flex items-center gap-2.5 mb-4">
               <Avatar
-                photoUrl={profilePhoto?.downloadUrl}
+                photoUrl={profilePhoto?.dataUrl}
                 brideName={formData?.brideName}
                 groomName={formData?.groomName}
                 size={36}

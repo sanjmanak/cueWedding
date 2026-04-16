@@ -7,7 +7,7 @@ import { blankFormData, eventOptions, ceremonyTraditions, bollywoodEras, western
 import { calculateAllPhases } from '../../utils/progress';
 import { generateRunSheet } from '../../utils/generatePDF';
 import { useAuth } from '../../context/AuthContext';
-import { uploadCouplePhoto, deleteCouplePhoto, PhotoUploadError } from '../../lib/photoUpload';
+import { compressCouplePhoto, PhotoUploadError } from '../../lib/photoUpload';
 
 const PHASE_LABELS = {
   1: 'Your Story',
@@ -300,13 +300,9 @@ export default function WeddingDetail() {
     if (!file || !weddingId) return;
     setPhotoBusy(true);
     setPhotoError(null);
-    const previousPath = wedding?.meta?.profile?.photo?.storagePath || null;
     try {
-      const descriptor = await uploadCouplePhoto(weddingId, file, user?.uid);
+      const descriptor = await compressCouplePhoto(file);
       await writeProfilePhoto(descriptor);
-      if (previousPath && previousPath !== descriptor.storagePath) {
-        deleteCouplePhoto(previousPath);
-      }
       await loadWedding();
     } catch (err) {
       console.error('Admin photo upload failed:', err);
@@ -319,12 +315,10 @@ export default function WeddingDetail() {
 
   async function handleAdminPhotoRemove() {
     if (!weddingId) return;
-    const previousPath = wedding?.meta?.profile?.photo?.storagePath || null;
     setPhotoBusy(true);
     setPhotoError(null);
     try {
       await writeProfilePhoto(null);
-      if (previousPath) deleteCouplePhoto(previousPath);
       await loadWedding();
     } catch (err) {
       console.error('Admin photo remove failed:', err);
@@ -910,7 +904,7 @@ function PhaseSection({ title, phase, progress, expanded, onToggle, children }) 
 
 function CoupleAvatar({ photo, brideName, groomName, busy, onFile, onRemove, error }) {
   const inputId = 'admin-couple-photo-input';
-  const hasPhoto = Boolean(photo?.downloadUrl);
+  const hasPhoto = Boolean(photo?.dataUrl);
   const initials = `${(brideName || '').charAt(0)}${(groomName || '').charAt(0)}`.toUpperCase() || '♡';
 
   return (
@@ -922,7 +916,7 @@ function CoupleAvatar({ photo, brideName, groomName, busy, onFile, onRemove, err
       >
         {hasPhoto ? (
           <img
-            src={photo.downloadUrl}
+            src={photo.dataUrl}
             alt={[brideName, groomName].filter(Boolean).join(' & ') || 'Couple'}
             className="w-full h-full object-cover"
           />

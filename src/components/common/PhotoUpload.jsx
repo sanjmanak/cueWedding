@@ -1,22 +1,19 @@
 import { useRef, useState } from 'react';
 import Avatar from './Avatar';
-import { uploadCouplePhoto, PhotoUploadError } from '../../lib/photoUpload';
-import { useAuth } from '../../context/AuthContext';
+import { compressCouplePhoto, PhotoUploadError } from '../../lib/photoUpload';
 
 /**
- * Couple profile photo uploader. Drag-drop or click. Compresses client-side,
- * uploads to Firebase Storage, then calls onUploaded with the photo descriptor.
+ * Couple profile photo uploader. Drag-drop or click. Compresses client-side
+ * to a JPEG data URL, then calls onUploaded with the photo descriptor.
  *
  * Props:
- *  - weddingId: string (required to upload)
- *  - photo: existing photo descriptor { downloadUrl, storagePath, ... } | null
+ *  - photo: existing photo descriptor { dataUrl, ... } | null
  *  - brideName / groomName: used for the avatar fallback
- *  - onUploaded(photo): called when a new upload succeeds
+ *  - onUploaded(photo): called when compression succeeds
  *  - onRemove(): called when the user clicks Remove
  *  - variant: 'card' (default, big drop zone) or 'compact' (small inline)
  */
 export default function PhotoUpload({
-  weddingId,
   photo,
   brideName = '',
   groomName = '',
@@ -24,32 +21,27 @@ export default function PhotoUpload({
   onRemove,
   variant = 'card',
 }) {
-  const { user } = useAuth();
   const inputRef = useRef(null);
-  const [uploading, setUploading] = useState(false);
+  const [processing, setProcessing] = useState(false);
   const [error, setError] = useState(null);
   const [dragOver, setDragOver] = useState(false);
 
   const handleFile = async (file) => {
     if (!file) return;
-    if (!weddingId) {
-      setError('Save your wedding first, then try uploading.');
-      return;
-    }
-    setUploading(true);
+    setProcessing(true);
     setError(null);
     try {
-      const descriptor = await uploadCouplePhoto(weddingId, file, user?.uid);
+      const descriptor = await compressCouplePhoto(file);
       onUploaded?.(descriptor);
     } catch (err) {
       const message =
         err instanceof PhotoUploadError
           ? err.message
-          : 'Upload failed. Please try again.';
-      console.error('Photo upload error:', err);
+          : 'Could not process this image. Please try again.';
+      console.error('Photo processing error:', err);
       setError(message);
     } finally {
-      setUploading(false);
+      setProcessing(false);
     }
   };
 
@@ -68,13 +60,13 @@ export default function PhotoUpload({
   };
 
   const pickFile = () => inputRef.current?.click();
-  const hasPhoto = Boolean(photo?.downloadUrl);
+  const hasPhoto = Boolean(photo?.dataUrl);
 
   if (variant === 'compact') {
     return (
       <div className="flex items-center gap-3">
         <Avatar
-          photoUrl={photo?.downloadUrl}
+          photoUrl={photo?.dataUrl}
           brideName={brideName}
           groomName={groomName}
           size={48}
@@ -83,16 +75,16 @@ export default function PhotoUpload({
           <button
             type="button"
             onClick={pickFile}
-            disabled={uploading}
+            disabled={processing}
             className="text-xs font-medium text-stone-700 hover:text-stone-900 underline underline-offset-2 disabled:opacity-50 cursor-pointer"
           >
-            {uploading ? 'Uploading…' : hasPhoto ? 'Replace photo' : 'Add couple photo'}
+            {processing ? 'Processing…' : hasPhoto ? 'Replace photo' : 'Add couple photo'}
           </button>
           {hasPhoto && (
             <button
               type="button"
               onClick={onRemove}
-              disabled={uploading}
+              disabled={processing}
               className="text-xs text-stone-400 hover:text-red-600 disabled:opacity-50 cursor-pointer text-left"
             >
               Remove
@@ -136,7 +128,7 @@ export default function PhotoUpload({
         }`}
       >
         <Avatar
-          photoUrl={photo?.downloadUrl}
+          photoUrl={photo?.dataUrl}
           brideName={brideName}
           groomName={groomName}
           size={80}
@@ -146,8 +138,8 @@ export default function PhotoUpload({
             {hasPhoto ? 'Looking great!' : 'Add a photo of the two of you'}
           </p>
           <p className="text-xs text-stone-500 mt-0.5">
-            {uploading
-              ? 'Uploading…'
+            {processing
+              ? 'Processing…'
               : hasPhoto
               ? 'Click or drop a new image to replace.'
               : 'Drag-and-drop or click to upload. JPEG or PNG, up to 8 MB.'}
@@ -161,7 +153,7 @@ export default function PhotoUpload({
           <button
             type="button"
             onClick={pickFile}
-            disabled={uploading}
+            disabled={processing}
             className="px-3 py-1.5 rounded-md bg-white border border-stone-300 text-stone-700 font-medium hover:bg-stone-100 disabled:opacity-50 cursor-pointer"
           >
             Replace
@@ -169,7 +161,7 @@ export default function PhotoUpload({
           <button
             type="button"
             onClick={onRemove}
-            disabled={uploading}
+            disabled={processing}
             className="px-3 py-1.5 rounded-md bg-white border border-stone-300 text-stone-500 font-medium hover:text-red-600 hover:border-red-300 disabled:opacity-50 cursor-pointer"
           >
             Remove

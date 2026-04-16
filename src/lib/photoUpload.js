@@ -1,9 +1,6 @@
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { storage } from './firebase';
-
-const MAX_DIMENSION = 1024;
-const JPEG_QUALITY = 0.85;
-const MAX_SOURCE_BYTES = 8 * 1024 * 1024; // 8 MB hard cap on the raw upload
+const MAX_DIMENSION = 800;
+const JPEG_QUALITY = 0.8;
+const MAX_SOURCE_BYTES = 8 * 1024 * 1024; // 8 MB hard cap on the source file
 
 export class PhotoUploadError extends Error {
   constructor(code, message) {
@@ -32,10 +29,24 @@ function fileToImage(file) {
 }
 
 /**
- * Draw image to a canvas at max 1024x1024, export as JPEG.
- * Canvas re-encode naturally strips EXIF (including any GPS data).
+ * Compress a photo to a JPEG data URL (max 800px, quality 0.8).
+ * Canvas re-encode naturally strips EXIF (including GPS data).
+ * Returns a descriptor suitable for storing in meta.profile.photo.
  */
-async function compressImage(file) {
+export async function compressCouplePhoto(file) {
+  if (!file) {
+    throw new PhotoUploadError('no_file', 'No file selected.');
+  }
+  if (!file.type?.startsWith('image/')) {
+    throw new PhotoUploadError('not_image', 'That file does not look like an image.');
+  }
+  if (file.size > MAX_SOURCE_BYTES) {
+    throw new PhotoUploadError(
+      'too_large',
+      'That image is larger than 8 MB. Try a smaller photo.'
+    );
+  }
+
   const img = await fileToImage(file);
   const { width, height } = img;
   const scale = Math.min(1, MAX_DIMENSION / Math.max(width, height));
@@ -48,79 +59,12 @@ async function compressImage(file) {
   const ctx = canvas.getContext('2d');
   ctx.drawImage(img, 0, 0, targetW, targetH);
 
-  const blob = await new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (b) => (b ? resolve(b) : reject(new PhotoUploadError('encode_failed', 'Could not process this image.'))),
-      'image/jpeg',
-      JPEG_QUALITY
-    );
-  });
-
-  return { blob, width: targetW, height: targetH };
-}
-
-/**
- * Upload a couple profile photo to Firebase Storage.
- * Stored at weddings/{weddingId}/profile/{uuid}.jpg.
- * Returns a photo descriptor suitable for meta.profile.photo.
- */
-export async function uploadCouplePhoto(weddingId, file, uploaderUid) {
-  if (!storage) {
-    throw new PhotoUploadError('storage_unavailable', 'Photo storage is not configured.');
-  }
-  if (!weddingId) {
-    throw new PhotoUploadError('no_wedding_id', 'Missing wedding id for upload.');
-  }
-  if (!file) {
-    throw new PhotoUploadError('no_file', 'No file selected.');
-  }
-  if (!file.type?.startsWith('image/')) {
-    throw new PhotoUploadError('not_image', 'That file does not look like an image.');
-  }
-  if (file.size > MAX_SOURCE_BYTES) {
-    throw new PhotoUploadError(
-      'too_large',
-      `That image is larger than 8 MB. Try a smaller photo.`
-    );
-  }
-
-  const { blob, width, height } = await compressImage(file);
-
-  const filename = `${crypto.randomUUID()}.jpg`;
-  const storagePath = `weddings/${weddingId}/profile/${filename}`;
-  const objectRef = ref(storage, storagePath);
-
-  await uploadBytes(objectRef, blob, {
-    contentType: 'image/jpeg',
-    customMetadata: {
-      weddingId,
-      uploadedByUid: uploaderUid || '',
-    },
-  });
-
-  const downloadUrl = await getDownloadURL(objectRef);
+  const dataUrl = canvas.toDataURL('image/jpeg', JPEG_QUALITY);
 
   return {
-    storagePath,
-    downloadUrl,
-    width,
-    height,
-    uploadedByUid: uploaderUid || null,
+    dataUrl,
+    width: targetW,
+    height: targetH,
     uploadedAt: new Date().toISOString(),
-    version: 1,
   };
-}
-
-/**
- * Best-effort delete of a previously uploaded photo. Swallows errors — if the
- * object is already gone or rules deny it, we still want the Firestore pointer
- * to clear so the UI recovers.
- */
-export async function deleteCouplePhoto(storagePath) {
-  if (!storage || !storagePath) return;
-  try {
-    await deleteObject(ref(storage, storagePath));
-  } catch (err) {
-    console.warn('Photo delete failed (non-fatal):', err);
-  }
 }

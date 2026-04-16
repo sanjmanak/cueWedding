@@ -169,7 +169,7 @@ function WeddingRow({ wedding }) {
       <td className="px-4 py-3">
         <div className="flex items-center gap-3">
           <Avatar
-            photoUrl={wedding.profilePhoto?.downloadUrl}
+            photoUrl={wedding.profilePhoto?.dataUrl}
             brideName={wedding.brideName}
             groomName={wedding.groomName}
             size={36}
