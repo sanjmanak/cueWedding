@@ -21,22 +21,31 @@ function FirestoreFormDataProvider({ weddingId, children }) {
   const pendingRef = useRef(null);
   const timeoutRef = useRef(null);
   const weddingRef = useRef(weddingId);
+  // Track which top-level formData keys the couple has touched since last
+  // flush. We only write those keys (via dot notation) so concurrent admin
+  // edits to OTHER keys don't get clobbered by the couple's flush.
+  const dirtyKeysRef = useRef(new Set());
   useEffect(() => { weddingRef.current = weddingId; }, [weddingId]);
 
   // Flush pending data to Firestore.
-  // Uses updateDoc with dot-notation so only formData and meta.updatedAt
-  // are touched — sibling meta fields (ownerUids, brideEmail, etc.) are
-  // never overwritten, which keeps Firestore rules happy.
+  // Writes only dirty top-level formData keys via dot notation so admin
+  // edits to other keys (e.g. admin fixes brideName while couple edits
+  // people[]) survive this flush.
   const flushToFirestore = useCallback(() => {
     const data = pendingRef.current;
     const id = weddingRef.current;
-    if (data && id && db) {
-      pendingRef.current = null;
-      updateDoc(doc(db, 'weddings', id), {
-        formData: data,
-        'meta.updatedAt': serverTimestamp(),
-      }).catch((err) => console.error('Firestore write error:', err));
+    const dirty = dirtyKeysRef.current;
+    if (!data || !id || !db || dirty.size === 0) return;
+
+    const updates = { 'meta.updatedAt': serverTimestamp() };
+    for (const key of dirty) {
+      updates[`formData.${key}`] = data[key] === undefined ? null : data[key];
     }
+    pendingRef.current = null;
+    dirtyKeysRef.current = new Set();
+    updateDoc(doc(db, 'weddings', id), updates).catch((err) =>
+      console.error('Firestore write error:', err)
+    );
   }, []);
 
   // Load data from Firestore once on mount (no real-time listener to avoid race conditions)
@@ -92,11 +101,20 @@ function FirestoreFormDataProvider({ weddingId, children }) {
     return () => window.removeEventListener('beforeunload', handleUnload);
   }, [flushToFirestore]);
 
-  // Wrapped setFormData that syncs to Firestore
+  // Wrapped setFormData that syncs to Firestore. Diffs top-level keys vs
+  // prev to record what changed — only those get written on flush.
   const setFormData = useCallback(
     (valueOrFn) => {
       setFormDataLocal((prev) => {
         const next = typeof valueOrFn === 'function' ? valueOrFn(prev) : valueOrFn;
+        const prevObj = prev || {};
+        const nextObj = next || {};
+        for (const key of Object.keys(nextObj)) {
+          if (nextObj[key] !== prevObj[key]) dirtyKeysRef.current.add(key);
+        }
+        for (const key of Object.keys(prevObj)) {
+          if (!(key in nextObj)) dirtyKeysRef.current.add(key);
+        }
         syncToFirestore(next);
         return next;
       });

@@ -354,14 +354,19 @@ export default function WeddingDetail() {
         return;
       }
 
-      // One write with the full formData + dot-notation meta updates so
-      // we never clobber ownerUids, brideEmail, or groomEmail.
-      await updateDoc(doc(db, 'weddings', weddingId), {
-        formData: draft,
+      // Write only the changed paths via dot notation. This avoids
+      // clobbering concurrent couple edits to other fields (couple-side
+      // flush in FormDataContext writes only its own dirty top-level keys,
+      // so the two sides compose cleanly).
+      const updates = {
         'meta.updatedAt': serverTimestamp(),
         'meta.lastEditedBy': user?.uid || null,
         'meta.lastEditedByEmail': user?.email || null,
-      });
+      };
+      for (const { path, newValue } of diffs) {
+        updates[`formData.${path}`] = newValue === undefined ? null : newValue;
+      }
+      await updateDoc(doc(db, 'weddings', weddingId), updates);
 
       // One audit log entry per changed field.
       const sanitize = (v) => (v === undefined ? null : v);
