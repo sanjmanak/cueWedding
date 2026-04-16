@@ -1,14 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFormData } from '../../context/FormDataContext';
-import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import PhaseWrapper from '../common/PhaseWrapper';
 import Input from '../common/Input';
 import Card from '../common/Card';
 import Button from '../common/Button';
 import PhotoUpload from '../common/PhotoUpload';
-import { deleteCouplePhoto } from '../../lib/photoUpload';
 import {
   eventOptions, howMetOptions, datingAppOptions,
   guestCountOptions, vibeWords, bollywoodEras, westernMusicOptions,
@@ -26,7 +24,6 @@ const steps = [
 
 export default function Phase1Story() {
   const { formData, updateField, updateNestedField, setFormData, profilePhoto, setProfilePhoto } = useFormData();
-  const { weddingId } = useAuth();
   const { addToast } = useToast();
   const [step, setStep] = useState(0);
 
@@ -38,22 +35,12 @@ export default function Phase1Story() {
   };
 
   const handlePhotoUploaded = (photo) => {
-    const previousPath = profilePhoto?.storagePath;
     setProfilePhoto(photo);
     addToast('Photo added!', 'success', 1500);
-    // Replace: delete the old object in the background so Storage doesn't
-    // accumulate orphans. Best-effort — errors are swallowed.
-    if (previousPath && previousPath !== photo.storagePath) {
-      deleteCouplePhoto(previousPath);
-    }
   };
 
   const handlePhotoRemoved = () => {
-    const previousPath = profilePhoto?.storagePath;
     setProfilePhoto(null);
-    if (previousPath) {
-      deleteCouplePhoto(previousPath);
-    }
   };
 
   return (
@@ -71,7 +58,6 @@ export default function Phase1Story() {
         <StepNames
           formData={formData}
           updateField={updateField}
-          weddingId={weddingId}
           profilePhoto={profilePhoto}
           onPhotoUploaded={handlePhotoUploaded}
           onPhotoRemoved={handlePhotoRemoved}
@@ -87,7 +73,7 @@ export default function Phase1Story() {
   );
 }
 
-function StepNames({ formData, updateField, weddingId, profilePhoto, onPhotoUploaded, onPhotoRemoved }) {
+function StepNames({ formData, updateField, profilePhoto, onPhotoUploaded, onPhotoRemoved }) {
   return (
     <div className="space-y-8 animate-fade-in-up">
       <div className="text-center mb-2">
@@ -103,7 +89,6 @@ function StepNames({ formData, updateField, weddingId, profilePhoto, onPhotoUplo
           </div>
         </div>
         <PhotoUpload
-          weddingId={weddingId}
           photo={profilePhoto}
           brideName={formData.brideName}
           groomName={formData.groomName}
@@ -630,9 +615,9 @@ function Phase1Summary({ formData, profilePhoto }) {
       {/* The Couple */}
       <Card className="p-6 bg-gradient-to-br from-gold-50 to-white">
         <div className="text-center">
-          {profilePhoto?.downloadUrl && (
+          {profilePhoto?.dataUrl && (
             <img
-              src={profilePhoto.downloadUrl}
+              src={profilePhoto.dataUrl}
               alt={[formData.brideName, formData.groomName].filter(Boolean).join(' & ') || 'Couple photo'}
               className="w-24 h-24 rounded-full object-cover mx-auto mb-4 border-2 border-gold-200 shadow-sm"
             />
