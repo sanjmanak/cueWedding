@@ -3,22 +3,26 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 
 export default function Footer() {
-  const { resetToBlank, resetToDemo } = useFormData();
+  const { resetToDemo } = useFormData();
   const { isDemo } = useAuth();
   const { addToast } = useToast();
 
-  const handleReset = () => {
-    if (window.confirm('Clear all data and start fresh? This cannot be undone.')) {
-      resetToBlank();
-      addToast('All data cleared — fresh start!', 'info');
-    }
-  };
-
+  // Two-step confirmation — single confirms have fired by accident in the past
+  // and blown away a finished run sheet.
   const handleRestoreDemo = () => {
-    if (window.confirm('Restore demo data? This will overwrite your current entries.')) {
-      resetToDemo();
-      addToast('Demo data restored!', 'info');
+    const first = window.confirm(
+      'Restore demo data?\n\nThis will OVERWRITE every answer you have entered — names, people, songs, timelines, everything. This cannot be undone.'
+    );
+    if (!first) return;
+    const second = window.prompt(
+      'Final check: to confirm you want to overwrite all of your data with demo data, type RESTORE below.'
+    );
+    if ((second || '').trim().toUpperCase() !== 'RESTORE') {
+      addToast('Restore cancelled.', 'info');
+      return;
     }
+    resetToDemo();
+    addToast('Demo data restored.', 'info');
   };
 
   return (
@@ -33,12 +37,6 @@ export default function Footer() {
             className="text-xs text-stone-400 hover:text-stone-600 px-3 py-1 rounded-lg hover:bg-stone-100 transition-colors cursor-pointer"
           >
             Restore Demo Data
-          </button>
-          <button
-            onClick={handleReset}
-            className="text-xs text-red-400 hover:text-red-600 px-3 py-1 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
-          >
-            Reset All Data
           </button>
         </div>
       </div>

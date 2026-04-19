@@ -1,9 +1,26 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { sendSignInLinkToEmail } from 'firebase/auth';
 import { db, auth } from '../../lib/firebase';
 import { blankFormData } from '../../data/demoData';
+
+// Look for any existing wedding that already uses this email as bride or groom.
+// Returns the first doc found, or null. Queries are case-insensitive via the
+// normalized lowercase values we store on create.
+async function findWeddingsByEmail(email) {
+  const normalized = email.trim().toLowerCase();
+  if (!normalized) return [];
+  const weddingsRef = collection(db, 'weddings');
+  const [brideSnap, groomSnap] = await Promise.all([
+    getDocs(query(weddingsRef, where('meta.brideEmail', '==', normalized))),
+    getDocs(query(weddingsRef, where('meta.groomEmail', '==', normalized))),
+  ]);
+  const hits = [];
+  brideSnap.forEach((d) => hits.push({ id: d.id, role: 'bride', data: d.data() }));
+  groomSnap.forEach((d) => hits.push({ id: d.id, role: 'groom', data: d.data() }));
+  return hits;
+}
 
 export default function CreateWedding() {
   const navigate = useNavigate();
@@ -21,12 +38,15 @@ export default function CreateWedding() {
   const [sendingInvite, setSendingInvite] = useState({ bride: false, groom: false });
   const [inviteSent, setInviteSent] = useState({ bride: false, groom: false });
   const [error, setError] = useState(null);
+  // When emails collide with existing weddings, we stash the conflicts here
+  // and render a confirm panel instead of creating. Admin can override.
+  const [duplicateCheck, setDuplicateCheck] = useState(null);
 
   const updateForm = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleCreate = async (e) => {
+  const handleCreate = async (e, { skipDuplicateCheck = false } = {}) => {
     e.preventDefault();
     if (!form.brideName.trim() || !form.groomName.trim()) {
       setError('Please enter both names.');
@@ -37,6 +57,21 @@ export default function CreateWedding() {
     setError(null);
 
     try {
+      // Check for existing weddings using either email, unless the admin has
+      // already seen and acknowledged the conflict panel in this submission.
+      if (!skipDuplicateCheck) {
+        const emails = [form.brideEmail, form.groomEmail].filter((e) => e.trim());
+        const hitsByEmail = await Promise.all(emails.map(findWeddingsByEmail));
+        const conflicts = emails
+          .map((email, i) => ({ email: email.trim().toLowerCase(), hits: hitsByEmail[i] }))
+          .filter((c) => c.hits.length > 0);
+        if (conflicts.length > 0) {
+          setDuplicateCheck({ conflicts, acknowledged: false });
+          setSaving(false);
+          return;
+        }
+      }
+
       const weddingId = crypto.randomUUID();
 
       // Pre-fill form data with what the admin entered
@@ -189,6 +224,63 @@ export default function CreateWedding() {
               className="flex-1 px-4 py-2 rounded-lg bg-stone-900 text-white text-sm font-medium hover:bg-stone-800 transition-colors cursor-pointer"
             >
               View Wedding
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (duplicateCheck && !duplicateCheck.acknowledged) {
+    return (
+      <div className="max-w-lg mx-auto">
+        <h1 className="text-2xl font-semibold text-stone-900 mb-6">Possible Duplicate</h1>
+        <div className="bg-white rounded-xl border border-amber-300 p-6">
+          <div className="mb-4 bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+            One or more of the emails you entered are already in use by another wedding. Creating a second wedding with the same email can cause the couple to be linked to the wrong one.
+          </div>
+          <div className="space-y-4 mb-6">
+            {duplicateCheck.conflicts.map(({ email, hits }) => (
+              <div key={email}>
+                <p className="text-sm font-medium text-stone-800 mb-1">{email}</p>
+                <ul className="text-xs text-stone-600 space-y-1">
+                  {hits.map((hit) => {
+                    const f = hit.data?.formData || {};
+                    const names = [f.brideName, f.groomName].filter(Boolean).join(' & ') || '(no names yet)';
+                    return (
+                      <li key={hit.id + hit.role} className="flex items-center justify-between gap-2 bg-stone-50 rounded px-2 py-1">
+                        <span className="truncate">{names} — {hit.role} email</span>
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/admin/weddings/${hit.id}`)}
+                          className="text-xs text-stone-600 hover:text-stone-900 underline whitespace-nowrap cursor-pointer"
+                        >
+                          Open
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => setDuplicateCheck(null)}
+              className="flex-1 px-4 py-2 rounded-lg border border-stone-300 text-sm font-medium text-stone-700 hover:bg-stone-50 transition-colors cursor-pointer"
+            >
+              Go Back & Edit
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                setDuplicateCheck({ ...duplicateCheck, acknowledged: true });
+                await handleCreate({ preventDefault: () => {} }, { skipDuplicateCheck: true });
+              }}
+              className="flex-1 px-4 py-2 rounded-lg bg-amber-600 text-white text-sm font-medium hover:bg-amber-700 transition-colors cursor-pointer"
+            >
+              Create Anyway
             </button>
           </div>
         </div>
