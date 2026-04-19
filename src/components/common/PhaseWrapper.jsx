@@ -1,8 +1,10 @@
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from './Button';
 import ProgressBar from './ProgressBar';
 import Avatar from './Avatar';
 import { useFormData } from '../../context/FormDataContext';
+import { formatRelativeTime } from '../../utils/time';
 
 export default function PhaseWrapper({
   phase,
@@ -16,7 +18,7 @@ export default function PhaseWrapper({
   showCompletion = false,
 }) {
   const navigate = useNavigate();
-  const { formData, profilePhoto } = useFormData();
+  const { formData, profilePhoto, saveState } = useFormData();
   const totalSteps = steps.length;
   const isCompletionStep = showCompletion && currentStep === totalSteps - 1;
   const coupleName = [formData?.brideName, formData?.groomName].filter(Boolean).join(' & ');
@@ -65,13 +67,16 @@ export default function PhaseWrapper({
             {phaseTitle}
           </h1>
           <ProgressBar value={currentStep + 1} max={totalSteps} className="mt-4" />
-          <div className="flex justify-between mt-2">
+          <div className="flex justify-between items-center gap-3 mt-2">
             <span className="text-xs text-stone-400">
               Step {currentStep + 1} of {totalSteps}
             </span>
-            <span className="text-xs text-stone-500 font-medium">
-              {steps[currentStep]}
-            </span>
+            <div className="flex items-center gap-3 min-w-0">
+              <SavedIndicator saveState={saveState} />
+              <span className="text-xs text-stone-500 font-medium truncate">
+                {steps[currentStep]}
+              </span>
+            </div>
           </div>
         </div>
       )}
@@ -101,5 +106,43 @@ export default function PhaseWrapper({
         </div>
       )}
     </div>
+  );
+}
+
+// Surfaces the debounced Firestore write lifecycle in the wizard header.
+// Hidden in demo mode (saveState is null) and before the first user edit.
+function SavedIndicator({ saveState }) {
+  // Tick once a minute so "Saved · 2m ago" advances without another save.
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  if (!saveState) return null;
+  const { status, lastSavedAt } = saveState;
+  if (status === 'saved' && !lastSavedAt) return null;
+
+  if (status === 'saving') {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs text-stone-400">
+        <span className="w-1.5 h-1.5 rounded-full bg-stone-400 animate-pulse" />
+        Saving…
+      </span>
+    );
+  }
+  if (status === 'error') {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs text-red-600">
+        <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+        Save failed — retrying
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs text-stone-400">
+      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+      Saved · {formatRelativeTime(lastSavedAt)}
+    </span>
   );
 }
