@@ -153,6 +153,15 @@ function StepNames({ formData, updateField, profilePhoto, onPhotoUploaded, onPho
   );
 }
 
+const datingAppAccent = {
+  violet: 'border-violet-400 bg-violet-50 text-violet-700 ring-violet-200',
+  rose: 'border-rose-400 bg-rose-50 text-rose-700 ring-rose-200',
+  yellow: 'border-yellow-500 bg-yellow-50 text-yellow-800 ring-yellow-200',
+  orange: 'border-orange-400 bg-orange-50 text-orange-700 ring-orange-200',
+  amber: 'border-amber-500 bg-amber-50 text-amber-800 ring-amber-200',
+  stone: 'border-stone-500 bg-stone-50 text-stone-700 ring-stone-200',
+};
+
 function StepHowMet({ formData, updateField, setFormData }) {
   const selectedOption = howMetOptions.find((o) => o.id === formData.howMet);
 
@@ -166,92 +175,105 @@ function StepHowMet({ formData, updateField, setFormData }) {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in-up">
+    <div className="space-y-8 animate-fade-in-up">
       <div className="text-center mb-2">
         <p className="text-sm tracking-widest text-gold-600 uppercase mb-2">Chapter One</p>
-        <h2 className="font-heading text-2xl font-semibold text-stone-800">Your love story</h2>
-        <p className="text-stone-500 mt-2">We love sharing how couples met during announcements</p>
+        <h2 className="font-heading text-3xl font-semibold text-stone-800">Your love story</h2>
+        <p className="text-stone-500 mt-2 max-w-md mx-auto">
+          Guests always want to know — how did you two find each other?
+        </p>
       </div>
 
-      <Card className="p-6 sm:p-8 space-y-6">
-        {/* How did you meet buttons */}
-        <div>
-          <label className="block text-sm font-medium text-stone-700 mb-3">How did you two meet?</label>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {howMetOptions.map((option) => (
-              <button
-                key={option.id}
-                onClick={() => selectHowMet(option.id)}
-                className={`px-4 py-3 rounded-lg border text-sm font-medium transition-all cursor-pointer ${
-                  formData.howMet === option.id
-                    ? 'bg-gold-50 border-gold-400 text-gold-700'
-                    : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300'
-                }`}
-              >
+      {/* How did you meet tiles */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        {howMetOptions.map((option) => {
+          const isSelected = formData.howMet === option.id;
+          return (
+            <button
+              key={option.id}
+              onClick={() => selectHowMet(option.id)}
+              className={`p-5 rounded-xl border-2 text-center transition-all duration-200 cursor-pointer ${
+                isSelected
+                  ? 'border-gold-500 bg-gold-50 shadow-sm scale-[1.02]'
+                  : 'border-stone-200 bg-white hover:border-stone-300 hover:shadow-sm'
+              }`}
+            >
+              <div className="text-3xl mb-2">{option.emoji}</div>
+              <div className={`text-sm font-medium ${isSelected ? 'text-gold-700' : 'text-stone-700'}`}>
                 {option.label}
-              </button>
-            ))}
-          </div>
-        </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
 
-        {/* Dating app follow-up — inline within same card */}
-        {selectedOption?.followUpType === 'apps' && (
-          <div className="animate-fade-in-up">
-            <label className="block text-sm font-medium text-stone-700 mb-3">
-              {selectedOption.followUp} <span className="text-stone-400 font-normal">Your DJ might have fun with this</span>
-            </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {datingAppOptions.map((app) => (
+      {/* Dating app follow-up — branded tile picker */}
+      {selectedOption?.followUpType === 'apps' && (
+        <div className="animate-fade-in-up space-y-3">
+          <div className="text-center">
+            <p className="font-heading text-lg text-stone-800">Which app gets the credit?</p>
+            <p className="text-sm text-stone-400 mt-1">Your DJ might have a little fun with this during announcements.</p>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {datingAppOptions.map((app) => {
+              const isSelected = formData.datingApp === app.name;
+              const accent = datingAppAccent[app.accent] || datingAppAccent.stone;
+              return (
                 <button
-                  key={app}
-                  onClick={() => updateField('datingApp', app)}
-                  className={`px-4 py-3 rounded-lg border text-sm font-medium transition-all cursor-pointer ${
-                    formData.datingApp === app
-                      ? 'bg-gold-50 border-gold-400 text-gold-700'
-                      : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300'
+                  key={app.name}
+                  onClick={() => updateField('datingApp', app.name)}
+                  className={`p-4 rounded-xl border-2 text-center transition-all duration-200 cursor-pointer ${
+                    isSelected
+                      ? `${accent} shadow-sm scale-[1.02] ring-2`
+                      : 'border-stone-200 bg-white text-stone-700 hover:border-stone-300 hover:shadow-sm'
                   }`}
                 >
-                  {app}
+                  <div className="text-2xl mb-1.5">{app.emoji}</div>
+                  <div className="text-sm font-medium">{app.name}</div>
                 </button>
-              ))}
-            </div>
+              );
+            })}
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Text follow-up for other options — inline within same card */}
-        {selectedOption?.followUpType === 'text' && (
-          <div className="animate-fade-in-up">
-            <label className="block text-sm font-medium text-stone-700 mb-2">{selectedOption.followUp}</label>
-            <input
-              type="text"
-              value={formData.howMetDetail || ''}
-              onChange={(e) => updateField('howMetDetail', e.target.value)}
-              placeholder={selectedOption.followUp}
-              className="w-full px-4 py-3 rounded-lg bg-stone-50 border border-stone-200 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:border-gold-400 focus:ring-1 focus:ring-gold-400"
-            />
-          </div>
-        )}
-
-        {/* Fun detail — always visible, part of same card */}
-        <div>
-          <label className="block text-sm font-medium text-stone-700 mb-2">
-            Any fun detail your DJ should know? <span className="text-stone-400 font-normal">(optional)</span>
+      {/* Text follow-up for non-app paths — conversational, not a form label */}
+      {selectedOption?.followUpType === 'text' && (
+        <Card className="p-5 sm:p-6 space-y-2 animate-fade-in-up bg-gradient-to-br from-gold-50/40 to-white">
+          <label className="block font-heading text-base text-stone-800">
+            {selectedOption.followUp}
           </label>
           <input
             type="text"
-            value={formData.meetDetail || ''}
-            onChange={(e) => updateField('meetDetail', e.target.value)}
-            placeholder="e.g., He proposed at the same restaurant where they had their first date"
-            className="w-full px-4 py-3 rounded-lg bg-stone-50 border border-stone-200 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:border-gold-400 focus:ring-1 focus:ring-gold-400"
+            value={formData.howMetDetail || ''}
+            onChange={(e) => updateField('howMetDetail', e.target.value)}
+            placeholder={selectedOption.followUp}
+            className="w-full px-4 py-3 rounded-lg bg-white border border-stone-200 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:border-gold-400 focus:ring-1 focus:ring-gold-400"
           />
-        </div>
-      </Card>
+        </Card>
+      )}
+
+      {/* Fun detail — softer, always available */}
+      <div className="pt-2 border-t border-stone-100">
+        <label className="block font-heading text-base text-stone-800 mb-1">
+          Any fun detail we should work in? <span className="text-stone-400 text-sm font-normal">(optional)</span>
+        </label>
+        <p className="text-xs text-stone-400 mb-3">The little things make the best announcements.</p>
+        <input
+          type="text"
+          value={formData.meetDetail || ''}
+          onChange={(e) => updateField('meetDetail', e.target.value)}
+          placeholder="e.g., He proposed at the same restaurant where they had their first date"
+          className="w-full px-4 py-3 rounded-lg bg-white border border-stone-200 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:border-gold-400 focus:ring-1 focus:ring-gold-400"
+        />
+      </div>
     </div>
   );
 }
 
 function StepEvents({ formData, updateField }) {
   const selected = formData.selectedEvents || [];
+  const [openInfo, setOpenInfo] = useState(null);
   const toggle = (id) => {
     const next = selected.includes(id) ? selected.filter((e) => e !== id) : [...selected, id];
     updateField('selectedEvents', next);
@@ -261,25 +283,61 @@ function StepEvents({ formData, updateField }) {
     <div className="space-y-6 animate-fade-in-up">
       <div className="text-center mb-2">
         <p className="text-stone-500">What events are you planning? Tap all that apply.</p>
+        <p className="text-xs text-stone-400 mt-1">Hover a tile — or tap the ⓘ on mobile — to learn what each one is.</p>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {eventOptions.map((event) => (
-          <button
-            key={event.id}
-            onClick={() => toggle(event.id)}
-            className={`p-5 rounded-xl border-2 text-center transition-all duration-200 cursor-pointer ${
-              selected.includes(event.id)
-                ? 'border-gold-500 bg-gold-50 shadow-sm scale-[1.02]'
-                : 'border-stone-200 hover:border-stone-300 hover:shadow-sm'
-            }`}
-          >
-            <div className="text-3xl mb-2">{event.emoji}</div>
-            <div className="text-sm font-medium text-stone-700">{event.label}</div>
-            {selected.includes(event.id) && (
-              <div className="text-gold-600 text-xs mt-1 font-medium">Selected</div>
-            )}
-          </button>
-        ))}
+        {eventOptions.map((event) => {
+          const isSelected = selected.includes(event.id);
+          const isInfoOpen = openInfo === event.id;
+          return (
+            <div key={event.id} className="group relative">
+              <button
+                onClick={() => toggle(event.id)}
+                className={`w-full p-5 rounded-xl border-2 text-center transition-all duration-200 cursor-pointer ${
+                  isSelected
+                    ? 'border-gold-500 bg-gold-50 shadow-sm scale-[1.02]'
+                    : 'border-stone-200 bg-white hover:border-stone-300 hover:shadow-sm'
+                }`}
+              >
+                <div className="text-3xl mb-2">{event.emoji}</div>
+                <div className="text-sm font-semibold text-stone-800">{event.label}</div>
+                <div className="text-[11px] text-stone-400 mt-0.5">{event.tagline}</div>
+                {isSelected && (
+                  <div className="text-gold-600 text-xs mt-1.5 font-medium">Selected</div>
+                )}
+              </button>
+
+              {/* Info toggle — visible on mobile, hidden on desktop (hover shows tooltip instead) */}
+              <button
+                type="button"
+                aria-label={`About ${event.label}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpenInfo(isInfoOpen ? null : event.id);
+                }}
+                className="sm:hidden absolute top-2 right-2 w-6 h-6 rounded-full bg-white/90 border border-stone-200 text-stone-400 text-xs font-semibold flex items-center justify-center active:bg-stone-100"
+              >
+                ⓘ
+              </button>
+
+              {/* Desktop hover tooltip */}
+              <div
+                role="tooltip"
+                className="hidden sm:block absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-56 p-3 rounded-lg bg-stone-900 text-white text-xs leading-relaxed shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 z-10"
+              >
+                {event.description}
+                <span className="absolute left-1/2 -translate-x-1/2 top-full w-2 h-2 bg-stone-900 rotate-45 -mt-1" />
+              </div>
+
+              {/* Mobile inline description (toggled via info button) */}
+              {isInfoOpen && (
+                <div className="sm:hidden absolute left-0 right-0 top-full mt-2 p-3 rounded-lg bg-stone-900 text-white text-xs leading-relaxed shadow-lg z-10 animate-fade-in-up">
+                  {event.description}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
       {selected.length > 0 && (
         <div className="text-center">
