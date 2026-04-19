@@ -104,10 +104,140 @@ export const templateOptions = {
     { id: 'cocktail-style', label: 'Cocktail Style', description: 'Mingling, short program, dance floor' },
     { id: 'scratch', label: 'Start from Scratch', description: 'Build your own custom timeline' },
   ],
+  ceremony: [
+    { id: 'classic-hindu', label: 'Classic Hindu Ceremony', description: 'Baraat → milni → pheras → vidai, ~2 hrs' },
+    { id: 'short-ceremony', label: 'Short Ceremony', description: 'Essentials only — ~75 min' },
+    { id: 'scratch', label: 'Start from Scratch', description: 'Build your own custom timeline' },
+  ],
   default: [
     { id: 'guided', label: 'Guided Template', description: 'Pre-built timeline you can customize' },
     { id: 'scratch', label: 'Start from Scratch', description: 'Build your own custom timeline' },
   ],
+};
+
+// Starter timelines seeded when a template is chosen in Phase 4. Durations
+// aim for 15/30-min blocks; start times reflect typical desi-wedding patterns
+// (ceremony mid-afternoon, sangeet/reception ~7pm, haldi morning, afterparty
+// late). Users edit freely after seeding.
+export const templateTimelines = {
+  'traditional-gujarati': {
+    startTime: '19:00',
+    blocks: [
+      { type: 'dance-set', label: 'Guests Arrive — Background Music', duration: 30 },
+      { type: 'speech', label: 'Welcome & MC Intro', duration: 5, speaker: '', relationship: 'MC' },
+      { type: 'dance-set', label: 'Opening Garba Circle', duration: 45 },
+      { type: 'performance', label: "Bride's Family Dance", duration: 5, performerName: '', songName: '' },
+      { type: 'performance', label: "Groom's Family Dance", duration: 5, performerName: '', songName: '' },
+      { type: 'performance', label: 'Couple Performance', duration: 5, performerName: '', songName: '' },
+      { type: 'dinner', label: 'Dinner', duration: 45 },
+      { type: 'dance-set', label: 'Open Garba / Dandiya', duration: 60 },
+    ],
+  },
+  'modern-performances': {
+    startTime: '19:00',
+    blocks: [
+      { type: 'cocktail', label: 'Guests Arrive — Cocktails', duration: 30 },
+      { type: 'speech', label: 'Welcome & MC Intro', duration: 5, speaker: '', relationship: 'MC' },
+      { type: 'performance', label: "Bride's Side Performance", duration: 5, performerName: '', songName: '' },
+      { type: 'performance', label: "Groom's Side Performance", duration: 5, performerName: '', songName: '' },
+      { type: 'performance', label: 'Couple Performance', duration: 7, performerName: '', songName: '' },
+      { type: 'performance', label: 'Friends / Family Surprise', duration: 5, performerName: '', songName: '' },
+      { type: 'dinner', label: 'Dinner', duration: 45 },
+      { type: 'dance-set', label: 'Open Dance Floor', duration: 60 },
+    ],
+  },
+  'classic-reception': {
+    startTime: '19:00',
+    blocks: [
+      { type: 'cocktail', label: 'Cocktail Hour', duration: 60 },
+      { type: 'tradition', label: 'Grand Entrance', duration: 10 },
+      { type: 'speech', label: 'Welcome / MC', duration: 5, speaker: '', relationship: 'MC' },
+      { type: 'speech', label: 'Father of the Bride Toast', duration: 5, speaker: '', relationship: 'Father of the Bride' },
+      { type: 'speech', label: 'Best Man Toast', duration: 5, speaker: '', relationship: 'Best Man' },
+      { type: 'dinner', label: 'Dinner Service', duration: 45 },
+      { type: 'tradition', label: 'First Dance', duration: 5 },
+      { type: 'tradition', label: 'Father-Daughter Dance', duration: 4 },
+      { type: 'tradition', label: 'Mother-Son Dance', duration: 4 },
+      { type: 'tradition', label: 'Cake Cutting', duration: 5 },
+      { type: 'dance-set', label: 'Open Dance Floor', duration: 90 },
+    ],
+  },
+  'cocktail-style': {
+    startTime: '19:00',
+    blocks: [
+      { type: 'cocktail', label: 'Cocktails & Mingling', duration: 60 },
+      { type: 'tradition', label: 'Grand Entrance', duration: 10 },
+      { type: 'speech', label: 'Toasts', duration: 15, speaker: '', relationship: '' },
+      { type: 'dinner', label: "Heavy Hors d'oeuvres", duration: 30 },
+      { type: 'tradition', label: 'First Dance', duration: 5 },
+      { type: 'dance-set', label: 'Open Dance Floor', duration: 90 },
+    ],
+  },
+  'classic-hindu': {
+    startTime: '15:00',
+    blocks: [
+      { type: 'tradition', label: 'Baraat Arrival', duration: 20 },
+      { type: 'tradition', label: 'Milni (Family Exchange)', duration: 15 },
+      { type: 'tradition', label: 'Ganesh Puja', duration: 15 },
+      { type: 'tradition', label: 'Jai Mala', duration: 10 },
+      { type: 'tradition', label: 'Kanyadaan', duration: 15 },
+      { type: 'tradition', label: 'Pheras', duration: 20 },
+      { type: 'tradition', label: 'Sindoor & Mangalsutra', duration: 10 },
+      { type: 'tradition', label: 'Vidai', duration: 15 },
+    ],
+  },
+  'short-ceremony': {
+    startTime: '15:00',
+    blocks: [
+      { type: 'tradition', label: 'Baraat Arrival', duration: 15 },
+      { type: 'tradition', label: 'Jai Mala', duration: 10 },
+      { type: 'tradition', label: 'Pheras', duration: 20 },
+      { type: 'tradition', label: 'Sindoor & Mangalsutra', duration: 10 },
+      { type: 'tradition', label: 'Vidai', duration: 15 },
+    ],
+  },
+};
+
+// Event-specific fallback for the generic 'guided' template shown on events
+// that don't have a named template set (haldi, mehndi, garba, afterparty).
+export const guidedTimelines = {
+  haldi: {
+    startTime: '10:00',
+    blocks: [
+      { type: 'cocktail', label: 'Guests Arrive — Chai & Breakfast', duration: 30 },
+      { type: 'tradition', label: 'Haldi Application', duration: 45 },
+      { type: 'performance', label: 'Family Songs / Dholki', duration: 30, performerName: '', songName: '' },
+      { type: 'dinner', label: 'Brunch', duration: 45 },
+    ],
+  },
+  mehndi: {
+    startTime: '18:00',
+    blocks: [
+      { type: 'cocktail', label: 'Guests Arrive — Henna Stations Open', duration: 60 },
+      { type: 'dance-set', label: 'Background Music / Dholki', duration: 45 },
+      { type: 'dinner', label: 'Dinner', duration: 45 },
+      { type: 'dance-set', label: 'Open Dance Floor', duration: 45 },
+    ],
+  },
+  garba: {
+    startTime: '19:00',
+    blocks: [
+      { type: 'dance-set', label: 'Guests Arrive — Background Music', duration: 30 },
+      { type: 'tradition', label: 'Aarti', duration: 10 },
+      { type: 'dance-set', label: 'Garba Circle', duration: 60 },
+      { type: 'break', label: 'Water / Snack Break', duration: 15 },
+      { type: 'dance-set', label: 'Dandiya Raas', duration: 60 },
+    ],
+  },
+  afterparty: {
+    startTime: '22:00',
+    blocks: [
+      { type: 'dance-set', label: 'Warm-Up Set', duration: 30 },
+      { type: 'dance-set', label: 'Peak Dance Floor', duration: 90 },
+      { type: 'break', label: 'Late-Night Snacks', duration: 15 },
+      { type: 'dance-set', label: 'Closing Set', duration: 45 },
+    ],
+  },
 };
 
 export const defaultDemoData = {

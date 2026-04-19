@@ -102,13 +102,17 @@ export async function generateRunSheet(data) {
 
   const heading = (text, size = 16) => {
     const { num, title } = splitHeading(text);
-    checkPage(num ? 24 : 20);
+    // A 16pt bold cap is ~4mm tall, so the title baseline needs to sit well
+    // below the eyebrow — 4mm was too tight and produced visible overlap.
+    const eyebrowGap = 8;
+    const titleCapHeight = size * 0.28;
+    checkPage((num ? eyebrowGap : 0) + titleCapHeight + 12);
     if (num) {
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(8);
       doc.setTextColor(...GOLD);
       doc.text(`SECTION ${num}`, margin, y, { charSpace: 0.8 });
-      y += 4;
+      y += eyebrowGap;
     }
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(size);

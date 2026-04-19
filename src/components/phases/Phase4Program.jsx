@@ -6,7 +6,8 @@ import Card from '../common/Card';
 import Input from '../common/Input';
 import MusicSearch from '../features/MusicSearch';
 import {
-  eventOptions, templateOptions, timelineBlockTypes, ceremonyTraditions,
+  eventOptions, templateOptions, templateTimelines, guidedTimelines,
+  timelineBlockTypes, ceremonyTraditions,
 } from '../../data/demoData';
 
 const steps = [
@@ -49,14 +50,57 @@ export default function Phase4Program() {
 }
 
 function StepTemplates({ formData, setFormData }) {
+  const { addToast } = useToast();
   const events = formData.selectedEvents || [];
   const templates = formData.eventTemplates || {};
 
+  // Resolve the starter timeline + start time for a (event, template) pair.
+  // 'guided' is event-specific; named templates are keyed by their id. 'scratch'
+  // and unmapped combos return null — no seeding happens.
+  const resolveStarter = (eventId, templateId) => {
+    if (!templateId || templateId === 'scratch') return null;
+    if (templateId === 'guided') return guidedTimelines[eventId] || null;
+    return templateTimelines[templateId] || null;
+  };
+
   const selectTemplate = (eventId, templateId) => {
-    setFormData((prev) => ({
-      ...prev,
-      eventTemplates: { ...prev.eventTemplates, [eventId]: templateId },
-    }));
+    const starter = resolveStarter(eventId, templateId);
+    const existing = formData.timelines?.[eventId] || [];
+
+    if (starter && existing.length > 0) {
+      const ok = window.confirm(
+        'Replace this event\'s current timeline with the template? Your existing blocks will be cleared.'
+      );
+      if (!ok) {
+        setFormData((prev) => ({
+          ...prev,
+          eventTemplates: { ...prev.eventTemplates, [eventId]: templateId },
+        }));
+        return;
+      }
+    }
+
+    setFormData((prev) => {
+      const next = {
+        ...prev,
+        eventTemplates: { ...prev.eventTemplates, [eventId]: templateId },
+      };
+      if (starter) {
+        next.timelines = {
+          ...prev.timelines,
+          [eventId]: starter.blocks.map((b) => ({ ...b, id: crypto.randomUUID(), details: '' })),
+        };
+        if (!prev.eventStartTimes?.[eventId]) {
+          next.eventStartTimes = {
+            ...prev.eventStartTimes,
+            [eventId]: starter.startTime,
+          };
+        }
+      }
+      return next;
+    });
+
+    if (starter) addToast('Template applied — edit the timeline next', 'success', 2000);
   };
 
   return (
