@@ -92,12 +92,28 @@ export async function generateRunSheet(data) {
     }
   };
 
+  // Splits "1. Couple Profile" into { num: "01", title: "Couple Profile" }.
+  // Untouched ("Ceremony") returns { num: null, title: "Ceremony" }.
+  const splitHeading = (text) => {
+    const match = text.match(/^(\d+)\.\s*(.+)$/);
+    if (!match) return { num: null, title: text };
+    return { num: String(match[1]).padStart(2, '0'), title: match[2] };
+  };
+
   const heading = (text, size = 16) => {
-    checkPage(20);
+    const { num, title } = splitHeading(text);
+    checkPage(num ? 24 : 20);
+    if (num) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(...GOLD);
+      doc.text(`SECTION ${num}`, margin, y, { charSpace: 0.8 });
+      y += 4;
+    }
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(size);
     doc.setTextColor(...DARK);
-    doc.text(clean(text), margin, y);
+    doc.text(clean(title), margin, y);
     y += size * 0.5 + 2;
     doc.setDrawColor(...GOLD);
     doc.setLineWidth(0.5);
@@ -109,7 +125,7 @@ export async function generateRunSheet(data) {
     checkPage(12);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
-    doc.setTextColor(...GOLD);
+    doc.setTextColor(...DARK);
     doc.text(clean(text), margin, y);
     y += 6;
   };
@@ -124,17 +140,31 @@ export async function generateRunSheet(data) {
     y += lines.length * 5;
   };
 
+  // Fixed label column (right-aligned) + wrapping value column. This avoids
+  // long labels like "Bollywood Era" colliding with their value.
+  const LABEL_COL_WIDTH = 32;
   const labelValue = (label, value, indent = 0) => {
-    checkPage(8);
+    const labelRight = margin + indent + LABEL_COL_WIDTH;
+    const valueX = labelRight + 4;
+    const valueMaxWidth = pageW - margin - valueX;
+    const valueStr = String(clean(value) || '—');
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    const lines = doc.splitTextToSize(valueStr, valueMaxWidth);
+    const blockH = Math.max(6, lines.length * 5 + 1);
+    checkPage(blockH + 2);
+
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
     doc.setTextColor(...GRAY);
-    doc.text(clean(label), margin + indent, y);
+    doc.text(clean(label), labelRight, y, { align: 'right' });
+
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
     doc.setTextColor(...DARK);
-    doc.text(String(clean(value) || '—'), margin + indent + 40, y);
-    y += 6;
+    doc.text(lines, valueX, y);
+    y += blockH;
   };
 
   const spacer = (h = 4) => { y += h; };
@@ -543,6 +573,24 @@ export async function generateRunSheet(data) {
     doc.text(`Date: ${data.signatureDate || '—'}`, margin, y);
   } else {
     bodyText('Not yet signed.');
+  }
+
+  // ===== RUNNING FOOTER =====
+  // Field-use essential: when the DJ's printed pages get shuffled on the booth,
+  // a page number + couple identity on every page lets them re-sequence fast.
+  // Skip the cover (page 1).
+  const totalPages = doc.getNumberOfPages();
+  const coupleLine = `${clean(data.brideName || '')} & ${clean(data.groomName || '')}`;
+  const footerLeft = [coupleLine.trim() && coupleLine, clean(dateStr)]
+    .filter(Boolean)
+    .join('  ·  ');
+  for (let p = 2; p <= totalPages; p++) {
+    doc.setPage(p);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(...GRAY);
+    if (footerLeft) doc.text(footerLeft, margin, pageH - 10);
+    doc.text(`Page ${p} of ${totalPages}`, pageW - margin, pageH - 10, { align: 'right' });
   }
 
   // Save
