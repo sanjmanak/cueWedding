@@ -54,17 +54,24 @@ const resolveBlockSong = (block, data) => {
   return null;
 };
 
-function loadImage(url) {
+// Downscale images before embedding. The source logo is 3342x1533 at 373KB on
+// disk, but Canvas.toDataURL('image/png') re-encodes unoptimized, then base64
+// adds 33% — resulting in ~20MB embedded. Capping to 480px keeps the print
+// looking crisp at 40mm while cutting file size by ~300x.
+function loadImage(url, maxEdge = 480) {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
+      const scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
       const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
+      canvas.width = w;
+      canvas.height = h;
       const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0);
-      resolve(canvas.toDataURL('image/png'));
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve({ dataUrl: canvas.toDataURL('image/png'), width: w, height: h });
     };
     img.onerror = () => resolve(null);
     img.src = url;
@@ -136,13 +143,17 @@ export async function generateRunSheet(data) {
   doc.setFillColor(...LIGHT);
   doc.rect(0, 0, pageW, pageH, 'F');
 
-  // Logo
+  // Logo — preserve source aspect ratio, target ~50mm on the longest edge.
   let logoLoaded = false;
   try {
     const baseUrl = import.meta.env.BASE_URL || '/';
-    const logoData = await loadImage(baseUrl + 'logo.png');
-    if (logoData) {
-      doc.addImage(logoData, 'PNG', pageW / 2 - 20, 20, 40, 40);
+    const logo = await loadImage(baseUrl + 'logo.png');
+    if (logo?.dataUrl) {
+      const targetLongEdge = 50; // mm
+      const ratio = logo.width / logo.height;
+      const w = ratio >= 1 ? targetLongEdge : targetLongEdge * ratio;
+      const h = ratio >= 1 ? targetLongEdge / ratio : targetLongEdge;
+      doc.addImage(logo.dataUrl, 'PNG', (pageW - w) / 2, 25, w, h);
       logoLoaded = true;
     }
   } catch {
