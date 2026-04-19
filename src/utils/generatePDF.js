@@ -479,29 +479,169 @@ export async function generateRunSheet(data) {
   y = margin;
   heading('5. Program Timeline');
 
+  // Format minutes-since-midnight as "7:05 PM".
+  const formatClockTime = (totalMinutes) => {
+    const h24 = Math.floor(totalMinutes / 60) % 24;
+    const m = totalMinutes % 60;
+    const ampm = h24 >= 12 ? 'PM' : 'AM';
+    const h12 = h24 % 12 || 12;
+    return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`;
+  };
+  const parseStartTime = (hhmm) => {
+    if (!hhmm) return null;
+    const [h, m] = String(hhmm).split(':').map(Number);
+    if (Number.isNaN(h) || Number.isNaN(m)) return null;
+    return h * 60 + m;
+  };
+
+  // Column layout (mm). Widths tuned for A4 - margin * 2 = 170mm usable.
+  const TIME_COL_W = 28;
+  const ACTIVITY_COL_W = 72;
+  const DURATION_COL_W = 18;
+  const ROW_PAD_X = 2;
+  const HEADER_ROW_H = 7;
+  const ROW_MIN_H = 6.5;
+  const ZEBRA_FILL = [250, 248, 244]; // warm off-white so it reads on screen + print
+  const BORDER = [220, 217, 211];
+
+  const drawTimelineTable = (blocks, startTimeMinutes) => {
+    const tableLeft = margin;
+    const tableRight = pageW - margin;
+    const tableWidth = tableRight - tableLeft;
+    const timeX = tableLeft;
+    const activityX = timeX + TIME_COL_W;
+    const durationX = activityX + ACTIVITY_COL_W;
+    const detailsX = durationX + DURATION_COL_W;
+    const detailsW = tableRight - detailsX;
+
+    // Header row
+    checkPage(HEADER_ROW_H + ROW_MIN_H + 4);
+    doc.setFillColor(...DARK);
+    doc.rect(tableLeft, y, tableWidth, HEADER_ROW_H, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(255, 255, 255);
+    const headerBaseline = y + HEADER_ROW_H - 2.2;
+    doc.text('TIME', timeX + ROW_PAD_X, headerBaseline, { charSpace: 0.5 });
+    doc.text('ACTIVITY', activityX + ROW_PAD_X, headerBaseline, { charSpace: 0.5 });
+    doc.text('DUR', durationX + ROW_PAD_X, headerBaseline, { charSpace: 0.5 });
+    doc.text('DETAILS', detailsX + ROW_PAD_X, headerBaseline, { charSpace: 0.5 });
+    y += HEADER_ROW_H;
+
+    let cumMin = 0;
+    blocks.forEach((block, idx) => {
+      const startMin = cumMin;
+      const duration = block.duration || 0;
+      cumMin += duration;
+
+      // Build details string based on block type.
+      let details = '';
+      if (block.type === 'performance' && (block.performerName || block.songName)) {
+        const performer = inlinePronunciations(block.performerName || '—', data);
+        const song = block.songName ? `"${block.songName}"` : '—';
+        details = `${performer} - ${song}`;
+      } else if (block.type === 'speech' && block.speaker) {
+        const speaker = inlinePronunciations(block.speaker, data);
+        details = block.relationship ? `${speaker} (${block.relationship})` : speaker;
+      }
+
+      const timeLabel = startTimeMinutes !== null
+        ? formatClockTime(startTimeMinutes + startMin)
+        : `+${startMin}m`;
+      const activityLabel = clean(block.label || '—');
+      const durationLabel = `${duration}m`;
+      const detailsLabel = clean(details);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      const activityLines = doc.splitTextToSize(activityLabel, ACTIVITY_COL_W - ROW_PAD_X * 2);
+      const detailsLines = detailsLabel
+        ? doc.splitTextToSize(detailsLabel, detailsW - ROW_PAD_X * 2)
+        : [];
+      const contentLines = Math.max(1, activityLines.length, detailsLines.length);
+      const rowH = Math.max(ROW_MIN_H, contentLines * 4.2 + 2);
+
+      // Page-break before starting this row; redraw the table header on the
+      // new page so the column meanings stay visible.
+      if (y + rowH > pageH - margin) {
+        doc.addPage();
+        y = margin;
+        doc.setFillColor(...DARK);
+        doc.rect(tableLeft, y, tableWidth, HEADER_ROW_H, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(255, 255, 255);
+        const hb = y + HEADER_ROW_H - 2.2;
+        doc.text('TIME', timeX + ROW_PAD_X, hb, { charSpace: 0.5 });
+        doc.text('ACTIVITY', activityX + ROW_PAD_X, hb, { charSpace: 0.5 });
+        doc.text('DUR', durationX + ROW_PAD_X, hb, { charSpace: 0.5 });
+        doc.text('DETAILS', detailsX + ROW_PAD_X, hb, { charSpace: 0.5 });
+        y += HEADER_ROW_H;
+      }
+
+      // Zebra row background.
+      if (idx % 2 === 0) {
+        doc.setFillColor(...ZEBRA_FILL);
+        doc.rect(tableLeft, y, tableWidth, rowH, 'F');
+      }
+
+      // Cell text
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(...GOLD);
+      doc.text(timeLabel, timeX + ROW_PAD_X, y + 4.6);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(...DARK);
+      doc.text(activityLines, activityX + ROW_PAD_X, y + 4.6);
+
+      doc.setTextColor(...GRAY);
+      doc.text(durationLabel, durationX + ROW_PAD_X, y + 4.6);
+
+      if (detailsLines.length) {
+        doc.setTextColor(...DARK);
+        doc.text(detailsLines, detailsX + ROW_PAD_X, y + 4.6);
+      }
+
+      y += rowH;
+    });
+
+    // Bottom border for the table.
+    doc.setDrawColor(...BORDER);
+    doc.setLineWidth(0.2);
+    doc.line(tableLeft, y, tableRight, y);
+  };
+
   (data.selectedEvents || []).forEach((eventId) => {
     const event = eventOptions.find((e) => e.id === eventId);
     const blocks = data.timelines?.[eventId] || [];
     if (blocks.length === 0) return;
-    checkPage(20);
+    const startTimeMinutes = parseStartTime(data.eventStartTimes?.[eventId]);
+
+    checkPage(30);
+
+    // Event header with highlighted start time.
     subheading(event?.label || eventId);
-    let cumMin = 0;
-    blocks.forEach((block) => {
-      checkPage(12);
-      bodyText(`+${cumMin}min  ${block.label} (${block.duration}min)`, 4);
-      // Show performance details inline
-      if (block.type === 'performance' && (block.performerName || block.songName)) {
-        const performer = inlinePronunciations(block.performerName || '—', data);
-        bodyText(`  Performer: ${performer}  |  Song: ${block.songName || '—'}`, 12);
-      }
-      // Show speech details inline
-      if (block.type === 'speech' && block.speaker) {
-        const speaker = inlinePronunciations(block.speaker, data);
-        bodyText(`  Speaker: ${speaker}${block.relationship ? ` (${block.relationship})` : ''}`, 12);
-      }
-      cumMin += block.duration || 0;
-    });
-    spacer();
+    if (startTimeMinutes !== null) {
+      // Pull y back up to sit next to the subheading and render a pill.
+      const pillY = y - 6;
+      const pillLabel = `Starts ${formatClockTime(startTimeMinutes)}`;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      const pillTextW = doc.getTextWidth(pillLabel);
+      const pillW = pillTextW + 6;
+      const pillH = 5.5;
+      const pillX = pageW - margin - pillW;
+      doc.setFillColor(...GOLD);
+      doc.roundedRect(pillX, pillY - pillH + 1.5, pillW, pillH, 1.5, 1.5, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.text(pillLabel, pillX + 3, pillY - 0.5);
+    }
+    y += 1;
+
+    drawTimelineTable(blocks, startTimeMinutes);
+    spacer(6);
   });
 
   // Legacy performances (from old data format)
