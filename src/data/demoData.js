@@ -1,11 +1,11 @@
 export const eventOptions = [
-  { id: 'haldi', label: 'Haldi', emoji: '🌸' },
-  { id: 'mehndi', label: 'Mehndi', emoji: '🌿' },
-  { id: 'sangeet', label: 'Sangeet', emoji: '🎶' },
-  { id: 'garba', label: 'Garba', emoji: '💃' },
-  { id: 'ceremony', label: 'Ceremony', emoji: '💑' },
-  { id: 'reception', label: 'Reception', emoji: '🥂' },
-  { id: 'afterparty', label: 'After Party', emoji: '🎉' },
+  { id: 'haldi', label: 'Haldi', emoji: '🌸', tagline: 'Turmeric blessing', description: 'A joyful morning ritual where family smears turmeric paste on the couple for blessings and a pre-wedding glow.' },
+  { id: 'mehndi', label: 'Mehndi', emoji: '🌿', tagline: 'Henna night', description: 'An intimate henna night — artists paint intricate designs on the bride and her close circle while everyone gathers.' },
+  { id: 'sangeet', label: 'Sangeet', emoji: '🎶', tagline: 'Music & dance', description: 'A music-and-dance celebration where both families perform choreographed numbers for the couple.' },
+  { id: 'garba', label: 'Garba', emoji: '💃', tagline: 'Dandiya dance night', description: 'A high-energy Gujarati folk dance night with circles of dandiya sticks, twirling outfits, and dhol beats.' },
+  { id: 'ceremony', label: 'Ceremony', emoji: '💑', tagline: 'The sacred vows', description: 'The sacred wedding rites — baraat, pheras, and the vows that make it official.' },
+  { id: 'reception', label: 'Reception', emoji: '🥂', tagline: 'Grand celebration', description: 'The formal celebration: grand entrance, speeches, first dances, and dinner with the wider guest list.' },
+  { id: 'afterparty', label: 'After Party', emoji: '🎉', tagline: 'Late-night dance floor', description: 'Late-night dance floor for the inner circle — where the DJ really gets to cook.' },
 ];
 
 export const vibeWords = [
@@ -31,7 +31,12 @@ export const howMetOptions = [
 ];
 
 export const datingAppOptions = [
-  'Dil Mil', 'Hinge', 'Bumble', 'Tinder', 'Coffee Meets Bagel', 'Other',
+  { name: 'Dil Mil', emoji: '💜', accent: 'violet' },
+  { name: 'Hinge', emoji: '🎯', accent: 'rose' },
+  { name: 'Bumble', emoji: '🐝', accent: 'yellow' },
+  { name: 'Tinder', emoji: '🔥', accent: 'orange' },
+  { name: 'Coffee Meets Bagel', emoji: '☕', accent: 'amber' },
+  { name: 'Other', emoji: '✨', accent: 'stone' },
 ];
 
 export const guestCountOptions = [
